@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../widgets/custom_button.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -9,9 +11,59 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  String email = '';
-  String password = '';
-  String confirmPassword = '';
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _authService = AuthService();
+  bool _isLoading = false;
+
+  void _register() async {
+    if (_formKey.currentState!.validate()) {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+        return;
+      }
+
+      setState(() => _isLoading = true);
+
+      try {
+        final user = await _authService.register(
+          _emailController.text,
+          _passwordController.text,
+          _nameController.text,
+        );
+
+        if (mounted) {
+          if (user != null) {
+            // Registration successful
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Welcome, ${user.name}!')));
+            // Navigate to home screen
+            Navigator.pushReplacementNamed(context, '/home');
+          } else {
+            // Registration failed
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Registration failed')),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,38 +87,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 40),
                 TextFormField(
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  onChanged: (value) => setState(() => email = value),
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please enter your name' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please enter your email' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                  onChanged: (value) => setState(() => password = value),
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please enter a password' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
+                  controller: _confirmPasswordController,
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'Confirm Password',
+                    border: OutlineInputBorder(),
                   ),
-                  onChanged: (value) => setState(() => confirmPassword = value),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Please confirm your password' : null,
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/home');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                  child: const Text('Register'),
+                CustomButton(
+                  text: _isLoading ? 'Registering...' : 'Register',
+                  onPressed: _isLoading ? null : _register,
                 ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/');
+                    Navigator.pop(context);
                   },
                   child: const Text(
                     'Already have an account? Login',
@@ -79,5 +148,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
 import '../widgets/custom_button.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,12 +14,15 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
+  bool _isLoading = false;
 
-  void _login() {
+  void _login() async {
     if (_formKey.currentState!.validate()) {
-      // On successful validation navigate to the board screen.
-      // Replace with authentication logic when backend is available.
-      Navigator.pushReplacementNamed(context, '/board');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Logging in...')));
+      // TODO: connect to backend later
     }
   }
 
@@ -64,7 +68,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         value!.isEmpty ? 'Please enter your password' : null,
                   ),
                   const SizedBox(height: 30),
-                  CustomButton(text: 'Login', onPressed: _login),
+                  CustomButton(
+                    text: _isLoading ? 'Logging in...' : 'Login',
+                    onPressed: _isLoading ? null : _login,
+                  ),
                   const SizedBox(height: 15),
                   TextButton(
                     onPressed: () {
