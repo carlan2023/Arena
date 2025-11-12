@@ -16,10 +16,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() {
     if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Logging in...')));
-      // TODO: connect to backend later
+      // On successful validation navigate to the board screen.
+      // Replace with authentication logic when backend is available.
+      Navigator.pushReplacementNamed(context, '/board');
     }
   }
 
@@ -69,13 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 15),
                   TextButton(
                     onPressed: () {
-                      // Navigate to the Register screen instead of home
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const RegisterScreen(),
-                        ),
-                      );
+                      Navigator.pushReplacementNamed(context, '/register');
                     },
 
                     child: const Text("Don't have an account? Register"),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/board_screen.dart';
 
 void main() {
   runApp(const ArenaApp());
@@ -22,6 +24,8 @@ class ArenaApp extends StatelessWidget {
       routes: {
         '/': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/board': (context) => const BoardScreen(),
       },
     );
   }
