@@ -1,0 +1,70 @@
+name: Deploy server
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: staging or production
+        required: true
+        default: staging
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/carlan2023/arena-server
+
+jobs:
+  deploy:
+    name: Build and deploy
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: ${{ (github.ref_type == 'tag' || inputs.target == 'production') && 'production' || 'staging' }}
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      TARGET: ${{ (github.ref_type == 'tag' || inputs.target == 'production') && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Check for a server to deploy
+        id: check
+        run: |
+          if [ -f server/Dockerfile ]; then echo "ready=true" >> "$GITHUB_OUTPUT"; else echo "ready=false" >> "$GITHUB_OUTPUT"; echo "No server/Dockerfile yet, skipping."; fi
+      - uses: docker/login-action@v3
+        if: steps.check.outputs.ready == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        if: steps.check.outputs.ready == 'true'
+        with:
+          context: .
+          file: server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.event.workflow_run.head_sha || github.sha }}
+            ${{ env.IMAGE }}:${{ env.TARGET }}
+      - name: Deploy over SSH
+        if: steps.check.outputs.ready == 'true' && env.DEPLOY_HOST != ''
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/arena
+            docker compose pull server
+            docker compose up -d server
+            docker image prune -f
+      - name: No host configured
+        if: steps.check.outputs.ready == 'true' && env.DEPLOY_HOST == ''
+        run: echo "::notice::Image pushed. Set DEPLOY_HOST, DEPLOY_USER and DEPLOY_SSH_KEY in the ${TARGET} environment to deploy it."

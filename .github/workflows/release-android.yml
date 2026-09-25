@@ -1,0 +1,71 @@
+name: Release Android
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      PACKAGE_ID: ${{ vars.ANDROID_PACKAGE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find app folder
+        run: |
+          if [ -f apps/mobile/pubspec.yaml ]; then echo "APP_DIR=apps/mobile" >> "$GITHUB_ENV"; else echo "APP_DIR=." >> "$GITHUB_ENV"; fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Set up release signing
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$APP_DIR/android/app/upload-keystore.jks"
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+            echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}"
+            echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}"
+          } > "$APP_DIR/android/key.properties"
+      - name: Warn when unsigned
+        if: env.KEYSTORE_B64 == ''
+        run: echo "::warning::No release keystore set. The build is signed with the debug key and cannot go to the Play Store."
+      - name: Version from tag
+        run: |
+          name="${GITHUB_REF_NAME#v}"
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then name="0.0.0"; fi
+          echo "BUILD_NAME=$name" >> "$GITHUB_ENV"
+      - name: Build
+        run: |
+          cd "$APP_DIR"
+          flutter pub get
+          flutter build apk --release --build-name="$BUILD_NAME" --build-number=${{ github.run_number }}
+          flutter build appbundle --release --build-name="$BUILD_NAME" --build-number=${{ github.run_number }}
+      - name: GitHub release with APK
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true
+      - name: Upload to Play internal testing
+        if: env.PLAY_JSON != '' && env.KEYSTORE_B64 != '' && env.PACKAGE_ID != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ vars.ANDROID_PACKAGE_ID }}
+          releaseFiles: ${{ env.APP_DIR }}/build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed

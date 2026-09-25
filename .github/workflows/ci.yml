@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect projects
+    runs-on: ubuntu-latest
+    outputs:
+      mobile_dir: ${{ steps.find.outputs.mobile_dir }}
+      engine: ${{ steps.find.outputs.engine }}
+      server: ${{ steps.find.outputs.server }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: find
+        run: |
+          if [ -f apps/mobile/pubspec.yaml ]; then
+            echo "mobile_dir=apps/mobile" >> "$GITHUB_OUTPUT"
+          elif [ -f pubspec.yaml ]; then
+            echo "mobile_dir=." >> "$GITHUB_OUTPUT"
+          else
+            echo "mobile_dir=" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f packages/ludo_engine/pubspec.yaml ]; then echo "engine=true" >> "$GITHUB_OUTPUT"; else echo "engine=false" >> "$GITHUB_OUTPUT"; fi
+          if [ -f server/pubspec.yaml ]; then echo "server=true" >> "$GITHUB_OUTPUT"; else echo "server=false" >> "$GITHUB_OUTPUT"; fi
+
+  engine:
+    name: Rules engine
+    needs: detect
+    if: needs.detect.outputs.engine == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ludo_engine
+    env:
+      COVERAGE_MIN: "95"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: dart analyze --fatal-infos
+      - run: dart test --coverage=coverage
+      - name: Check coverage
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
+          found=$(grep -h '^LF:' coverage/lcov.info | cut -d: -f2 | paste -sd+ - | bc)
+          hit=$(grep -h '^LH:' coverage/lcov.info | cut -d: -f2 | paste -sd+ - | bc)
+          if [ -z "$found" ] || [ "$found" = "0" ]; then echo "No coverable lines yet"; exit 0; fi
+          pct=$(( 100 * hit / found ))
+          echo "Engine coverage: ${pct} percent (minimum ${COVERAGE_MIN})"
+          if [ "$pct" -lt "$COVERAGE_MIN" ]; then exit 1; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: engine-coverage
+          path: packages/ludo_engine/coverage/lcov.info
+          if-no-files-found: ignore
+
+  server:
+    name: Server
+    needs: detect
+    if: needs.detect.outputs.server == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: arena
+          POSTGRES_PASSWORD: arena
+          POSTGRES_DB: arena
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U arena"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://arena:arena@localhost:5432/arena
+      REDIS_URL: redis://localhost:6379
+      PAYMENTS_PROVIDER: fake
+      AUTH_PROVIDER: fake
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: dart analyze --fatal-infos
+      - run: dart test
+
+  mobile:
+    name: Mobile app
+    needs: detect
+    if: needs.detect.outputs.mobile_dir != ''
+    runs-on: ubuntu-latest
+    env:
+      APP_DIR: ${{ needs.detect.outputs.mobile_dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get packages
+        run: cd "$APP_DIR" && flutter pub get
+      - name: Format
+        run: cd "$APP_DIR" && dart format --output=none --set-exit-if-changed lib test
+      - name: Analyze
+        run: cd "$APP_DIR" && flutter analyze --no-fatal-infos
+      - name: Test
+        run: cd "$APP_DIR" && flutter test --coverage
+      - name: Build APK
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: cd "$APP_DIR" && flutter build apk --release --build-number=${{ github.run_number }}
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: arena-apk-${{ github.run_number }}
+          path: ${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
