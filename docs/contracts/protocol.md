@@ -1,0 +1,117 @@
+# Contract: app to server protocol
+
+Status: frozen for M2. Owner: Server. Changes go through the supervisor and are logged in docs/decisions.md.
+
+The message classes, the fair dice function and a headless client live in one shared pure Dart package, packages/arena_protocol (pub name `arena_protocol`), owned by Server. The app and the server both import it, so the wire format exists once. It depends on `ludo_engine` and `crypto` only (plus `web_socket_channel` for the headless client, which must not import dart:io at the top level of the library the app imports; put the headless client in its own library file `package:arena_protocol/client.dart`).
+
+## HTTP
+
+Base URL from the app setting `ARENA_SERVER_URL`, for example http://10.0.2.2:8080 on the Android emulator. All bodies are JSON. Every route except login, health and payment callbacks needs `Authorization: Bearer <sessionToken>`.
+
+| Method and path | Body | Response |
+|---|---|---|
+| GET /health | | `{"ok": true, "version": "..."}` |
+| POST /v1/auth/login | `{"idToken": "..."}` | `{"sessionToken": "...", "user": User}` |
+| GET /v1/me | | `User` |
+| PATCH /v1/me | `{"displayName": "..."}` | `User` |
+| POST /v1/rooms | `{"mode": "oneVsOne", "seats": 2, "stake": 0, "rules": RulesConfig?}` | `Room` |
+| GET /v1/rooms/{code} | | `Room` |
+| GET /v1/wallet | | `{"balance": int, "currency": "UGX"}` |
+| GET /v1/wallet/history?limit=50 | | `{"entries": [WalletEntry]}` |
+| POST /v1/wallet/deposits | `{"amount": int, "msisdn": "2567...", "provider": "mtn"}` | `Payment` with status pending |
+| GET /v1/wallet/deposits/{id} | | `Payment` |
+| POST /v1/payments/callback/{provider} | provider specific | 200 always once parsed, even for duplicates |
+| POST /v1/dev/payments/{id}/confirm | | Only when PAYMENTS_PROVIDER=fake. Simulates the provider callback |
+| GET /v1/matches/{id}/verify | | `{"serverSeed", "serverSeedHash", "clientSeed", "rolls": [[a,b]...]}` after the match ends |
+
+Types:
+
+```
+User     {"id": str, "phone": str, "displayName": str}
+Room     {"code": str, "link": str, "mode": str, "seats": int, "stake": int, "status": "waiting|playing|finished",
+          "players": [{"seat": int, "userId": str, "displayName": str, "color": str, "isBot": bool, "connected": bool}]}
+Payment  {"id": str, "provider": "fake|mtn|airtel", "amount": int, "status": "pending|succeeded|failed", "createdAt": iso8601}
+WalletEntry {"txId": str, "kind": str, "amount": int, "balanceAfter": int, "at": iso8601}
+Error    {"error": {"code": str, "message": str}}
+```
+
+Room codes are 6 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`. The link is `${PUBLIC_BASE_URL}/r/${code}`. The app routes `/r/:code` to the room lobby. Rooms with a stake above 0 are refused with `paid_tables_disabled` until M3.9.
+
+HTTP errors use status 400, 401, 403, 404, 409 or 429 with the Error body.
+
+## Web socket
+
+`GET /v1/ws?token=<sessionToken>` upgrades to a web socket. Text frames, one JSON object per frame.
+
+Every message has `"type"`. Client messages carry `"cseq"`, a counter the client increments per message; the server echoes it as `"ref"` in any reply or error it causes. Server messages about a room carry `"seq"`, a per room counter that increases by one for every room event broadcast to all seats. Direct replies to one client (errors, pong) carry no seq.
+
+### App to server
+
+| type | Fields | Notes |
+|---|---|---|
+| join_room | `roomCode: str, clientSeed: str?, lastSeq: int?` | Takes a seat, or returns to your seat. Reply is room_state to you. clientSeed is at most 64 characters, used only on first join |
+| start_game | | Room owner only, with at least 2 seated players. Rooms also start by themselves when every seat is full |
+| roll | | Your turn, phase awaitingRoll |
+| move | `moves: [Move]` | The full list of steps for the current roll, in order, as engine Move JSON. Checked one step at a time with the engine. All or nothing |
+| leave_room | | Leaves the lobby, or forfeits a running game |
+| emote | `id: str` | Relayed to the room as emote. Ignored while not seated |
+| ping | | Reply pong |
+
+### Server to app
+
+| type | Fields | Sent |
+|---|---|---|
+| room_state | `seq, room: Room, state: GameState?, deadline: int?, serverSeedHash: str?, you: {seat: int, color: str?}` | Reply to join_room, and broadcast when players join, leave, connect or disconnect in the lobby, and on game start. Full snapshot. `state` is engine GameState JSON, null before the start. `deadline` is epoch milliseconds when the current decision times out |
+| dice | `seq, color: str, values: [int, int], rollNumber: int, legalMoves: [Move], state: GameState, deadline: int, auto: bool` | After every roll. `auto` true when the server rolled on timeout. If legalMoves is empty the state already shows the turn passed |
+| state_patch | `seq, color: str, moves: [Move], captured: [{"color", "index"}], state: GameState, deadline: int?, auto: bool` | After a move list is applied. `auto` true for timeout and bot moves |
+| player_status | `seq, seat: int, connected: bool, graceDeadline: int?, isBot: bool` | Disconnects, reconnects, bot takeover |
+| emote | `seq, seat: int, id: str` | |
+| game_over | `seq, ranking: [str], winners: [str], serverSeed: str, clientSeed: str, walletDelta: {str: int}` | Once. walletDelta maps userId to the change in their wallet, empty for free games |
+| error | `ref: int?, code: str, message: str` | To one client |
+| pong | `ref: int?` | |
+
+Error codes: `bad_request`, `unauthorized`, `room_not_found`, `room_full`, `already_started`, `not_in_room`, `not_your_turn`, `wrong_phase`, `illegal_move`, `not_owner`, `rate_limited`, `paid_tables_disabled`, `insufficient_funds`, `internal`.
+
+An illegal move list leaves the state unchanged and the timer running.
+
+### Turns and timers
+
+1. Each decision (roll, or the move list after a roll) has 20 seconds (`TURN_SECONDS`, default 20).
+2. On timeout the server rolls, or plays the move list chosen by the normal bot from packages/ludo_bots, and broadcasts with `auto: true`.
+3. After 3 timeouts in a row by one seat: in free games a bot takes the seat (player_status isBot true); in paid games the seat forfeits. A player who acts again takes the seat back from the bot in free games.
+4. Tests can shorten timers through server settings.
+
+### Reconnect
+
+1. A seat whose socket closes is marked disconnected (player_status with graceDeadline = now + 60 s, `RECONNECT_GRACE_SECONDS`). Its timer keeps running and timeouts play for it.
+2. Sending join_room with the same roomCode on a new socket within the grace period restores the seat. The reply is a full room_state snapshot. lastSeq is informational: the snapshot is always complete.
+3. After the grace period the seat is handed to a bot in free games, or forfeits in paid games.
+4. The same user joining from a second socket replaces the first socket.
+
+### Seats and colours
+
+Seats fill in join order. Colours by seat count: 2 seats: red, yellow. 3 seats: red, green, yellow. 4 seats: red, green, yellow, blue. Teams need 4 seats, partners red with yellow and green with blue.
+
+## Fair dice (README section 11)
+
+In `package:arena_protocol/fair_dice.dart`, used by the server to roll and by the app to verify.
+
+1. At match creation the server makes a 32 byte random `serverSeed` (Random.secure) and publishes `serverSeedHash = hex(sha256(serverSeed bytes))` in room_state before the first roll.
+2. `clientSeed` is the client seeds of the seated players in seat order, joined with `:`. A player who sent none contributes their seat number. It is fixed when the game starts.
+3. Roll number n (the engine's `rollNumber` before the roll, from 0) gives `h = HMAC_SHA256(key: serverSeed bytes, message: utf8("$clientSeed:$n"))`. Read bytes of h in order and skip any byte of 252 or more; the first usable byte b gives die1 = b % 6 + 1, the next gives die2. If the 32 bytes run out, continue with HMAC over `"$clientSeed:$n:1"`, then `:2`, and so on.
+4. At game over the server reveals serverSeed. Anyone can check `sha256(serverSeed) == serverSeedHash` and recompute every roll.
+
+```dart
+String hashServerSeed(List<int> serverSeed);          // lowercase hex
+(int, int) rollDice(List<int> serverSeed, String clientSeed, int rollNumber);
+bool verifyRolls({required String serverSeedHex, required String serverSeedHash,
+                  required String clientSeed, required List<(int, int)> rolls}); // rolls[i] is roll number i
+```
+
+## Message classes
+
+`arena_protocol` exposes one Dart class per message with `toJson` and `fromJson`, and `ClientMessage.decode(String)` and `ServerMessage.decode(String)` that return the right subclass, throwing `ProtocolException` on bad input. Unknown message types from the server are ignored by the client so the server can add messages.
+
+## Headless client
+
+`package:arena_protocol/client.dart` exposes `ArenaClient` for tests and bots: login over HTTP, create or join a room, a stream of ServerMessage, send methods for each client message, and `disconnect()` for tests that force a drop. The server integration test and the app's online game use this client or the same message classes.
