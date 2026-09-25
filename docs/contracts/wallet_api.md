@@ -1,6 +1,6 @@
 # Contract: wallet, payments and login interfaces
 
-Status: frozen for M2. Owner: Wallet. Changes go through the supervisor and are logged in docs/decisions.md.
+Status: frozen on 25 Sep 2026 for M2. Owner: Wallet. Changes go through the supervisor and are logged in docs/decisions.md.
 
 Two Dart packages, both owned by Wallet, both used by the server package:
 
@@ -178,3 +178,22 @@ class PaymentsService {
 Crediting rule: the wallet is credited only after the provider confirms success, through a ledger transaction with idempotency key `deposit:<paymentId>` moving the amount from `providerClearing:<provider>:ugx` to `wallet:<userId>:ugx`. Duplicate protection has two layers: the store's compare and set settle, and the ledger's idempotency key. Tests must show that a duplicated callback, two callbacks racing, and a callback after a refresh all credit exactly once.
 
 Deposit limits: amount between 500 and 5,000,000 UGX; msisdn is 256 followed by 9 digits.
+
+## Amendments at freeze (25 Sep 2026)
+
+These settle the review round and override anything above that disagrees.
+
+1. Crediting order: post the ledger transaction `deposit:<paymentId>` first, then settle the payment. After any settle attempt, if the stored payment is succeeded, post the deposit transaction again; the idempotency key makes it a no-op. A crash between the two writes is repaired by the next callback or refresh.
+2. Callbacks are hints. `handleCallback` finds the payment from the callback, then asks the provider with `checkStatus` and settles on that answer. Only the fake provider's callback is trusted as is. AirtelMoneyProvider takes an optional `String? callbackSecret` and checks the hash when set.
+3. `paymentId` is a UUID v4 and is the provider reference for every provider: MTN X-Reference-Id and externalId, Airtel transaction.id, fake ref. The service looks payments up by paymentId first. providerRef stays in the store.
+4. MtnMomoProvider takes `String currency = 'EUR'` because the sandbox only accepts EUR. The ledger still records UGX. Airtel strips the 256 prefix from the msisdn; the callback URL is set on the Airtel portal, so the callbackUrl parameter is documentation only. Airtel status TS is succeeded, TF failed, TIP and TA pending. Airtel production payload encryption is not in M2.
+5. A failed requestDeposit marks the payment failed only on a definite provider rejection (4xx). Timeouts and 5xx leave it pending for refresh.
+6. If the provider confirms a different amount, nothing is credited; the payment stays pending and is logged for review. The ledger only ever credits the stored amount.
+7. FakePaymentProvider: `void complete(String providerRef, {PaymentStatus status = PaymentStatus.succeeded, int? amount})` sets what checkStatus returns; `String callbackBody(String providerRef)` builds a matching callback.
+8. `class PaymentException implements Exception { final String code; final String message; }` for bad amount, bad msisdn, unknown provider (400 bad_request) and unreadable callbacks (`bad_callback`, 400). handleCallback returns null for an unknown payment (200).
+9. Ledger: `ledger_entries.balance_after bigint`, written while the account row is locked; balances are still sum(amount). Missing accounts are created with INSERT ON CONFLICT DO NOTHING, then locked FOR UPDATE in sorted key order. A duplicate key race catches Postgres 23505 and returns the first txId with duplicate true. A post refused for insufficient funds records nothing. The no negative check is on each wallet and pot balance after all transfers. Transfers with from equal to or a different currency than to are refused. History is newest first, entry id as tiebreaker. verifyIntegrity also checks no wallet or pot balance is negative. Coin grants come from `revenue:house:coin`, which may go negative.
+10. Firebase: header alg must be RS256, certs from https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com, auth_time in the past, 60 seconds of clock skew on iat and exp. PEM parsing with asn1lib and pointycastle.
+11. Session tokens: exp in epoch seconds, base64url without padding, constant time signature compare, secret of at least 32 bytes or ArgumentError.
+12. Users: columns include firebase_uid and a unique phone in E.164 (+256...). With no phone, phone is empty and the default name is "Player " plus the last 4 characters of the uid. setDisplayName throws ArgumentError when the trimmed name is not 1 to 24 characters (400) and StateError for an unknown id (404).
+13. Settlement (M3): withheld tax moves to taxWithheld, and rake tax moves from revenue to taxPayable.
+14. Postgres tests use their own schema per test file, or run with --concurrency=1, so CI's shared database does not collide.

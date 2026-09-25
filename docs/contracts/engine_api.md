@@ -1,6 +1,6 @@
 # Contract: ludo_engine public API
 
-Status: frozen for M1 and M2. Owner: Engine. Changes go through the supervisor and are logged in docs/decisions.md.
+Status: frozen on 25 Sep 2026 for M1 and M2. Owner: Engine. Changes go through the supervisor and are logged in docs/decisions.md.
 
 Package: packages/ludo_engine, pub name `ludo_engine`. Pure Dart, SDK ^3.9.0. No Flutter, no dart:io, no dart:html, no clock, no randomness. The engine never rolls dice: callers pass dice values in. Every public type is immutable, has value equality, and round trips through `toJson` and `fromJson` exactly.
 
@@ -26,7 +26,7 @@ Absolute track square of a piece on the track: `(startSquare(color) + progress) 
 
 Only track squares (progress 0 to 51) are shared. Captures and blocks happen only on track squares. Pieces in a home column or in the finish never block, never capture and are never captured (decision D6).
 
-For the board painter (Client): with a 15 by 15 grid, colour c's start square is the first cell of its outgoing arm column next to the middle end cell of its arm, and the middle end cell is progress 51. The home column is the 5 middle cells of the arm. Red's arm is the left arm.
+For the board painter (Client), on a 15 by 15 grid with (row, col) from the top left: red is the left arm, then clockwise green top, yellow right, blue bottom. Red progress 0 is (6,0), 1 to 5 are (6,1) to (6,5), 6 to 11 are (5,6) up to (0,6), 12 is (0,7), and 13 is (0,8), which is green's start square. Red progress 51 is (7,0), the home column 52 to 56 is (7,1) to (7,5), and the finish is the centre. The other colours are the same path rotated 90 degrees clockwise per colour. The start square is the outer corner cell of the arm, not the (6,1) of a painted Ludo board.
 
 ```dart
 enum PlayerColor { red, green, yellow, blue } // clockwise seat order
@@ -212,3 +212,34 @@ Engine test file test/worked_examples_test.dart has one test per README section 
 5. `worked example 5: exact finish, 5 cannot be used, 2 can`
 
 Test helpers can build positions with `GameState.fromJson` or a `GameState.custom(...)` test constructor, which the engine may add as long as it is marked `@visibleForTesting` in spirit (documented as test only).
+
+## Amendments at freeze (25 Sep 2026)
+
+These settle the review round and override anything above that disagrees.
+
+1. Block rights for a block of size n need an earlier roll in this turn to have been a double 6 (so never on the turn's first roll), and a six count of at least n. Rights last to the end of the turn.
+2. R4 default: a piece in `joinedOwnBlockThisRoll` gets no further step in that roll. It may move again on a later roll of the same turn. Joining means landing on a square that already held 2 or more of your pieces. A release never counts as joining, so the piece just released can always use the other die.
+3. Teams with R8 joint false: a partner's pieces are treated exactly like an opponent's. Partner blocks wall you, a single partner piece is captured.
+4. Teams with R8 joint true: 2 or more pieces of one team on a square form a block against the other team, sized by the total count. Team members cannot pass it and may land on it. blockAdvance moves only the mover's own colour pieces on that square, and needs 2 or more of them. For R4 a mixed square counts as the mover's own block.
+5. Teams with R8 roll true: from the moment a player finishes their last piece, their remaining dice, extra rolls and later turns move the partner's pieces.
+6. A player who finishes with no partner to roll for (free for all, or R8 roll false) gets no extra roll; the turn passes. Finished and forfeited players are skipped.
+7. Free for all with R6 true ends when at most one player is still playing. That player is ranked after the finishers.
+8. Forfeit: remaining dice are dropped. oneVsOne: the opponent wins. freeForAll: as rule 7; if one active player remains and nobody finished, they win. Teams: the other team wins (flagged for Allan as Q4). Forfeiting a finished or already forfeited player throws ArgumentError.
+9. R2 false: no maximising filter. Every individually legal step is offered, plus pass once at least one die of the roll is used.
+10. blockAdvance follows the single piece pass and landing rules, may enter the home column or finish (where the block ends), counts as 2 dice for R2, and `Move.die` is the face value even when R3 true makes the distance twice that.
+11. The dice nonce for a roll is `state.rollNumber` read before `applyRoll`; `applyRoll` then adds 1. It is 0 before the first roll.
+12. Seating: `players` in ascending enum order, no duplicates. oneVsOne is {red, yellow} or {green, blue}. teams is all four. freeForAll is 2 to 4. firstPlayer must be seated. Anything else throws ArgumentError.
+13. No package:meta. `GameState.custom(...)` is documented as test only in its doc comment.
+14. Added public helpers so no rule is copied into the app or bots:
+
+```dart
+class Block { final int square; final List<PieceRef> pieces; } // square is absolute 0..51
+List<Block> blocks(GameState state);
+bool hasBlockRights(GameState state, PlayerColor mover, int blockSize);
+
+/// Every complete list of steps for the current roll that the rules allow,
+/// deduplicated by resulting state. [[]] when no step is legal. Empty unless awaitingMove.
+/// Each list, applied in order with applyMove, is legal step by step and ends the roll
+/// (or, under R2 false, may end with a pass).
+List<List<Move>> legalSequences(GameState state);
+```

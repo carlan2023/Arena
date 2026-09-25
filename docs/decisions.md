@@ -22,3 +22,11 @@ Short records of decisions made while building. Rule defaults here are placehold
 | D16 | 25 Sep 2026 | With AUTH_PROVIDER=fake the app's login accepts code 123456 and sends fake:<phone>. Default is fake until the Firebase project exists | Two phones can log in and play before M0.5 and the Firebase project are decided |
 | D17 | 25 Sep 2026 | Paid rooms are refused with paid_tables_disabled until M3.9. M2 only proves deposits reach the wallet | Stakes and settlement are M3 work |
 | D18 | 25 Sep 2026 | This session works on branch claude/arena-m0-m1-m2-build-xy3qa3 and is merged to main from there | The session is only allowed to push to that branch |
+| D19 | 25 Sep 2026 | Contracts frozen after review by all five workers. Engine got 14 clarifications, protocol 15, wallet 14, and bots_api.md was added | Review round, see the amendment sections in each contract |
+| D20 | 25 Sep 2026 | Engine exposes blocks, hasBlockRights and legalSequences | The app needs them for the cracked block bar, the both dice ghost and auto play, and bots need the same enumeration, so no rule is copied |
+| D21 | 25 Sep 2026 | Teams: if one partner forfeits, the other team wins | Under R7 default the team can no longer win. Added to the questions for Allan |
+| D22 | 25 Sep 2026 | Payment callbacks are hints; the wallet is credited on the provider's own status answer | MTN callbacks are unsigned and Airtel's signature is optional |
+| D23 | 25 Sep 2026 | MTN sandbox deposits are requested in EUR, recorded in UGX | The MTN sandbox only accepts EUR |
+| D24 | 25 Sep 2026 | App defaults: online board rotated so your home is bottom left; the both dice ghost avoids an optional capture on the middle square; a block moves by tapping a block piece and its block spot; ARENA_SERVER_URL from dart-define, default http://10.0.2.2:8080 | Client review round |
+| D25 | 25 Sep 2026 | CI also runs on pushes to claude/** branches, pins Flutter 3.47.5 and Dart 3.13.4, and uses one matrix job over every Dart package | Foundations review round |
+| D26 | 25 Sep 2026 | Decisions are logged in this file rather than docs/adr | One short file is easier to keep current. README section 13 updated to match |
