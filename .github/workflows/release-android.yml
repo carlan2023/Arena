@@ -18,7 +18,7 @@ jobs:
       PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
       PACKAGE_ID: ${{ vars.ANDROID_PACKAGE_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Find app folder
         run: |
           if [ -f apps/mobile/pubspec.yaml ]; then echo "APP_DIR=apps/mobile" >> "$GITHUB_ENV"; else echo "APP_DIR=." >> "$GITHUB_ENV"; fi
