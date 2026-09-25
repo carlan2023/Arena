@@ -156,8 +156,8 @@ Google Play requires new personal developer accounts to run a closed test with a
 With every commit to main:
 
 1. Change the status of any task the commit moves forward. Use Not started, In progress, or Done.
-2. Put the short commit hash in the Commit column when a task is done.
-3. Add one line to the progress log with the date, hash and a plain description.
+2. Enter the date in the Date done column when a task is finished.
+3. Add one line to the progress log with the date, the task IDs and a plain description. Start the commit message with the same task ID so git log links back to the tracker.
 4. Update the milestone summary if the overall status changed.
 
 ### Milestone summary
@@ -175,10 +175,10 @@ With every commit to main:
 
 Done when the rules are signed off, the known bugs are fixed, the repo is restructured and CI is running.
 
-| ID | Task | Status | Commit |
+| ID | Task | Status | Date done |
 |---|---|---|---|
-| M0.1 | Write the project README | Done | 163efbe |
-| M0.2 | Draft board layout and dice widget | Done | 0485f45 |
+| M0.1 | Write the project README and milestone tracker | Done | 25 Sep 2026 |
+| M0.2 | Draft board layout and dice widget | Done | Before 25 Sep 2026 |
 | M0.3 | Decide rules R1 to R8 | Not started | |
 | M0.4 | Fix bugs B1 to B8 | Not started | |
 | M0.5 | Choose the final brand name and Android package id | Not started | |
@@ -191,7 +191,7 @@ Done when the rules are signed off, the known bugs are fixed, the repo is restru
 
 Done when a full game can be played offline against bots, with every rule in section 2 covered by tests.
 
-| ID | Task | Status | Commit |
+| ID | Task | Status | Date done |
 |---|---|---|---|
 | M1.1 | Game state model: track, home columns, pieces, blocks | Not started | |
 | M1.2 | Legal move generation for two dice | Not started | |
@@ -209,7 +209,7 @@ Done when a full game can be played offline against bots, with every rule in sec
 
 Done when two to four people can finish a game online from a shared WhatsApp link.
 
-| ID | Task | Status | Commit |
+| ID | Task | Status | Date done |
 |---|---|---|---|
 | M2.1 | Dart game server with WebSocket rooms | Not started | |
 | M2.2 | Server dice with verifiable rolls | Not started | |
@@ -224,7 +224,7 @@ Done when two to four people can finish a game online from a shared WhatsApp lin
 
 Done when strangers can find a game within 20 seconds and the app is ready for testers.
 
-| ID | Task | Status | Commit |
+| ID | Task | Status | Date done |
 |---|---|---|---|
 | M3.1 | Quick match queue for 1v1 and four players | Not started | |
 | M3.2 | Bots fill empty seats in free games after 20 seconds | Not started | |
@@ -237,7 +237,7 @@ Done when strangers can find a game within 20 seconds and the app is ready for t
 
 ### M4 Closed beta and release
 
-| ID | Task | Status | Commit |
+| ID | Task | Status | Date done |
 |---|---|---|---|
 | M4.1 | Closed test with at least 12 testers for 14 days | Not started | |
 | M4.2 | Crash free sessions at 99 percent or higher | Not started | |
@@ -255,13 +255,13 @@ Done when strangers can find a game within 20 seconds and the app is ready for t
 
 ### Progress log
 
-| Date | Commit | Change |
+| Date | Tasks | Change |
 |---|---|---|
-| | 8a00a66 | First commit, Flutter project created |
-| | fb201ea | Login, register and home screens added |
-| | 0485f45 | Board layout and dice widget |
-| | 98ac4dc | Merged main |
-| 25 Sep 2026 | 163efbe | Project README added |
+| Before 25 Sep 2026 | | Flutter project created |
+| Before 25 Sep 2026 | | Login, register and home screens added |
+| Before 25 Sep 2026 | M0.2 | Board layout and dice widget |
+| 25 Sep 2026 | M0.1 | Project README added |
+| 25 Sep 2026 | M0.1 | README rewritten in plain language, milestone tracker added |
 
 ## 5. Scope of the first release
 
