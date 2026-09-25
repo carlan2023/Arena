@@ -31,3 +31,4 @@ Short records of decisions made while building. Rule defaults here are placehold
 | D25 | 25 Sep 2026 | CI also runs on pushes to claude/** branches, pins Flutter 3.47.5 and Dart 3.13.4, and uses one matrix job over every Dart package | Foundations review round |
 | D26 | 25 Sep 2026 | Decisions are logged in this file rather than docs/adr | One short file is easier to keep current. README section 13 updated to match |
 | D27 | 25 Sep 2026 | Engine Move constructors are not const (they copy and sort piece lists). PieceRef JSON is {"c": colour, "i": index}, and the protocol's captured list uses the same form. Engine adds copyWith helpers and progressOf | Engine checkpoint 2, additive changes |
+| D28 | 25 Sep 2026 | Payment callback routes accept PUT as well as POST | MTN sends callbacks as PUT in some environments |

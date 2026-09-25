@@ -216,15 +216,15 @@ Done when two to four people can finish a game online from a shared WhatsApp lin
 |---|---|---|---|
 | M2.1 | Dart game server with WebSocket rooms | Not started | |
 | M2.2 | Server dice with verifiable rolls | Not started | |
-| M2.3 | Phone number login with OTP | Not started | |
+| M2.3 | Phone number login with OTP. Server side done: Firebase token check, fake login and session tokens | In progress | |
 | M2.4 | Create room, join by code or link | Not started | |
 | M2.5 | Turn timer and automatic moves | Not started | |
 | M2.6 | Reconnect within 60 seconds | Not started | |
 | M2.7 | Save match history and move log to Postgres | Not started | |
 | M2.8 | Staging server running | Not started | |
-| M2.9 | Double entry ledger for wallet balances and coins | Not started | |
-| M2.10 | Deposits through MTN MoMo and Airtel Money in the sandbox | Not started | |
-| M2.11 | Payment callbacks that are safe to receive twice | Not started | |
+| M2.9 | Double entry ledger for wallet balances and coins | Done | 25 Sep 2026 |
+| M2.10 | Deposits through MTN MoMo and Airtel Money in the sandbox. Blocked: the MTN and Airtel adapters and the fake are built and tested against mocked APIs, but a real sandbox deposit needs the developer accounts from M0.10 | Blocked | |
+| M2.11 | Payment callbacks that are safe to receive twice | Done | 25 Sep 2026 |
 | M2.12 | App connects to the server: login, create and join rooms, online game, reconnect | Not started | |
 
 ### M3 Matchmaking, paid tables and polish
@@ -281,6 +281,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M0.6 M0.4 | Flutter project moved to apps/mobile. Bugs B1 to B6 fixed with tests |
 | 25 Sep 2026 | M0.7 M0.4 | CI checks every Dart package with Postgres and Redis, gates engine coverage at 95 percent and runs on claude branches too. Deploys only follow pushes. .gitattributes added, B8 fixed. M0.3, M0.5, M0.8, M0.9 and M0.10 marked Blocked on Allan |
 | 25 Sep 2026 | M1.7 | Board drawn with CustomPainter from a tested track geometry, rotatable so your home sits bottom left |
+| 25 Sep 2026 | M2.3 M2.9 M2.10 M2.11 | Login package with Firebase token check, fake login and session tokens. Double entry ledger in memory and Postgres. MTN, Airtel and fake payment providers. A callback received twice, or many at once, credits the wallet once |
 
 ## 5. Scope of the first release
 
