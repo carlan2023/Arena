@@ -30,8 +30,14 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
-/coverage/
+build/
+coverage/
+
+# Lockfiles are kept only for programs that run (apps/mobile and server),
+# not for the library packages.
+packages/*/pubspec.lock
+server/auth/pubspec.lock
+server/wallet/pubspec.lock
 
 # Symbolication related
 app.*.symbols
@@ -40,9 +46,9 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
 
 # Signing and secrets
 **/android/key.properties

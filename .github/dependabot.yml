@@ -4,7 +4,23 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
   - package-ecosystem: pub
-    directory: /
+    directories:
+      - /apps/mobile
+      - /packages/ludo_engine
+      - /packages/ludo_bots
+      - /packages/arena_protocol
+      - /server
+      - /server/auth
+      - /server/wallet
     schedule:
       interval: weekly
+    groups:
+      pub-minor-and-patch:
+        update-types: [minor, patch]
+      pub-major:
+        update-types: [major]

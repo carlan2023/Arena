@@ -24,8 +24,12 @@ env:
 jobs:
   deploy:
     name: Build and deploy
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    # After CI, deploy only runs for pushes to main that passed, never for pull requests.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: ${{ (github.ref_type == 'tag' || inputs.target == 'production') && 'production' || 'staging' }}
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}

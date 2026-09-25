@@ -12,16 +12,15 @@ jobs:
   build:
     name: Build and publish
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: production
     env:
       KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
       PACKAGE_ID: ${{ vars.ANDROID_PACKAGE_ID }}
+      APP_DIR: apps/mobile
     steps:
       - uses: actions/checkout@v4
-      - name: Find app folder
-        run: |
-          if [ -f apps/mobile/pubspec.yaml ]; then echo "APP_DIR=apps/mobile" >> "$GITHUB_ENV"; else echo "APP_DIR=." >> "$GITHUB_ENV"; fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -29,6 +28,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: "3.47.5"
           cache: true
       - name: Set up release signing
         if: env.KEYSTORE_B64 != ''

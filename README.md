@@ -139,7 +139,7 @@ The Flutter project is named `arena` and lives at github.com/carlan2023/Arena, i
 | B5 | The link back to login on the register screen calls pop, but there is no screen to go back to | Fixed 25 Sep 2026 |
 | B6 | The widget test is the Flutter counter template | Fixed 25 Sep 2026 |
 | B7 | The Android package is still com.example.ludo_stake. It must change before the first Play Store upload, since it can never change afterwards | Waiting on M0.5 |
-| B8 | .github/copilot-instructions.md describes an older version of the project | Not started |
+| B8 | .github/copilot-instructions.md describes an older version of the project | Fixed 25 Sep 2026 |
 
 We keep the project structure, the dice images and the folder layout. The email login will be replaced by phone number login. The grid board will be replaced by a drawn board driven by a track model, and the single die by two dice rolled on the server.
 
@@ -181,14 +181,14 @@ Done when the rules are signed off, the known bugs are fixed, the repo is restru
 |---|---|---|---|
 | M0.1 | Write the project README and milestone tracker | Done | 25 Sep 2026 |
 | M0.2 | Draft board layout and dice widget | Done | Before 25 Sep 2026 |
-| M0.3 | Decide rules R1 to R8 | Not started | |
-| M0.4 | Fix bugs B1 to B8 | In progress | |
-| M0.5 | Choose the final brand name and Android package id | Not started | |
+| M0.3 | Decide rules R1 to R8. Blocked: needs Allan. The engine uses the defaults in docs/decisions.md D1 to D9 until then | Blocked | |
+| M0.4 | Fix bugs B1 to B8. B7 moves with M0.5 | Done | 25 Sep 2026 |
+| M0.5 | Choose the final brand name and Android package id. Blocked: needs Allan to choose the name and domain | Blocked | |
 | M0.6 | Restructure the repo into apps/mobile, packages/ludo_engine and server | Done | 25 Sep 2026 |
-| M0.7 | Set up GitHub Actions for CI, Android releases and server deploys | In progress | |
-| M0.8 | Register the Google Play developer account | Not started | |
-| M0.9 | Wireframe the core screens in Figma, including the wallet | Not started | |
-| M0.10 | Choose the payment provider and open sandbox accounts | Not started | |
+| M0.7 | Set up GitHub Actions for CI, Android releases and server deploys | Done | 25 Sep 2026 |
+| M0.8 | Register the Google Play developer account. Blocked: needs Allan to register and choose personal or organisation (D2) | Blocked | |
+| M0.9 | Wireframe the core screens in Figma, including the wallet. Blocked: needs Allan or a designer with a Figma account | Blocked | |
+| M0.10 | Choose the payment provider and open sandbox accounts. Blocked: needs Allan to open MTN MoMo and Airtel developer accounts. The code has a fake provider until then | Blocked | |
 
 ### M1 Rules engine and offline play
 
@@ -279,6 +279,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M0.7 | CI and CD workflows written, Android release signing added to Gradle |
 | 25 Sep 2026 | M0.6 | Contracts for the engine, protocol, wallet, bots and folder ownership agreed and frozen in docs/contracts, decisions logged in docs/decisions.md |
 | 25 Sep 2026 | M0.6 M0.4 | Flutter project moved to apps/mobile. Bugs B1 to B6 fixed with tests |
+| 25 Sep 2026 | M0.7 M0.4 | CI checks every Dart package with Postgres and Redis, gates engine coverage at 95 percent and runs on claude branches too. Deploys only follow pushes. .gitattributes added, B8 fixed. M0.3, M0.5, M0.8, M0.9 and M0.10 marked Blocked on Allan |
 | 25 Sep 2026 | M1.7 | Board drawn with CustomPainter from a tested track geometry, rotatable so your home sits bottom left |
 
 ## 5. Scope of the first release

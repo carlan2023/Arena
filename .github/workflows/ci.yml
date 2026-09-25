@@ -2,83 +2,49 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
   pull_request:
   workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep every run on main so deploys always have a finished CI to follow.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.5"
+  DART_VERSION: "3.13.4"
 
 jobs:
   detect:
     name: Detect projects
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      mobile_dir: ${{ steps.find.outputs.mobile_dir }}
-      engine: ${{ steps.find.outputs.engine }}
-      server: ${{ steps.find.outputs.server }}
+      dart_packages: ${{ steps.find.outputs.dart_packages }}
+      has_dart: ${{ steps.find.outputs.has_dart }}
+      has_mobile: ${{ steps.find.outputs.has_mobile }}
     steps:
       - uses: actions/checkout@v4
       - id: find
-        run: |
-          if [ -f apps/mobile/pubspec.yaml ]; then
-            echo "mobile_dir=apps/mobile" >> "$GITHUB_OUTPUT"
-          elif [ -f pubspec.yaml ]; then
-            echo "mobile_dir=." >> "$GITHUB_OUTPUT"
-          else
-            echo "mobile_dir=" >> "$GITHUB_OUTPUT"
-          fi
-          if [ -f packages/ludo_engine/pubspec.yaml ]; then echo "engine=true" >> "$GITHUB_OUTPUT"; else echo "engine=false" >> "$GITHUB_OUTPUT"; fi
-          if [ -f server/pubspec.yaml ]; then echo "server=true" >> "$GITHUB_OUTPUT"; else echo "server=false" >> "$GITHUB_OUTPUT"; fi
+        run: .github/scripts/find_packages.sh >> "$GITHUB_OUTPUT"
 
-  engine:
-    name: Rules engine
+  dart:
+    name: Dart ${{ matrix.package }}
     needs: detect
-    if: needs.detect.outputs.engine == 'true'
+    if: needs.detect.outputs.has_dart == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.detect.outputs.dart_packages) }}
     defaults:
       run:
-        working-directory: packages/ludo_engine
-    env:
-      COVERAGE_MIN: "95"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-      - run: dart pub get
-      - run: dart format --output=none --set-exit-if-changed .
-      - run: dart analyze --fatal-infos
-      - run: dart test --coverage=coverage
-      - name: Check coverage
-        run: |
-          dart pub global activate coverage
-          dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
-          found=$(grep -h '^LF:' coverage/lcov.info | cut -d: -f2 | paste -sd+ - | bc)
-          hit=$(grep -h '^LH:' coverage/lcov.info | cut -d: -f2 | paste -sd+ - | bc)
-          if [ -z "$found" ] || [ "$found" = "0" ]; then echo "No coverable lines yet"; exit 0; fi
-          pct=$(( 100 * hit / found ))
-          echo "Engine coverage: ${pct} percent (minimum ${COVERAGE_MIN})"
-          if [ "$pct" -lt "$COVERAGE_MIN" ]; then exit 1; fi
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: engine-coverage
-          path: packages/ludo_engine/coverage/lcov.info
-          if-no-files-found: ignore
-
-  server:
-    name: Server
-    needs: detect
-    if: needs.detect.outputs.server == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
+        working-directory: ${{ matrix.package }}
     services:
       postgres:
         image: postgres:16
@@ -105,23 +71,44 @@ jobs:
       REDIS_URL: redis://localhost:6379
       PAYMENTS_PROVIDER: fake
       AUTH_PROVIDER: fake
+      # Only the engine has a coverage gate (README section 4, M1.6).
+      COVERAGE_MIN: ${{ matrix.package == 'packages/ludo_engine' && '95' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: stable
+          sdk: ${{ env.DART_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-dart-${{ runner.os }}-${{ hashFiles('**/pubspec.yaml') }}
+          restore-keys: pub-dart-${{ runner.os }}-
       - run: dart pub get
       - run: dart format --output=none --set-exit-if-changed .
       - run: dart analyze --fatal-infos
-      - run: dart test
+      - run: dart test --coverage=coverage
+      - name: Check coverage
+        if: env.COVERAGE_MIN != ''
+        run: |
+          dart pub global activate coverage
+          dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
+          "$GITHUB_WORKSPACE/.github/scripts/check_coverage.sh" coverage/lcov.info "$COVERAGE_MIN"
+      - uses: actions/upload-artifact@v4
+        if: always() && env.COVERAGE_MIN != ''
+        with:
+          name: coverage-${{ strategy.job-index }}
+          path: ${{ matrix.package }}/coverage/lcov.info
+          if-no-files-found: ignore
 
   mobile:
     name: Mobile app
     needs: detect
-    if: needs.detect.outputs.mobile_dir != ''
+    if: needs.detect.outputs.has_mobile == 'true'
     runs-on: ubuntu-latest
-    env:
-      APP_DIR: ${{ needs.detect.outputs.mobile_dir }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mobile
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -131,21 +118,37 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
-      - name: Get packages
-        run: cd "$APP_DIR" && flutter pub get
-      - name: Format
-        run: cd "$APP_DIR" && dart format --output=none --set-exit-if-changed lib test
-      - name: Analyze
-        run: cd "$APP_DIR" && flutter analyze --no-fatal-infos
-      - name: Test
-        run: cd "$APP_DIR" && flutter test --coverage
+      - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed .
+      - run: flutter analyze --fatal-infos
+      - run: flutter test --coverage
       - name: Build APK
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: cd "$APP_DIR" && flutter build apk --release --build-number=${{ github.run_number }}
+        run: flutter build apk --release --build-number=${{ github.run_number }}
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: arena-apk-${{ github.run_number }}
-          path: ${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
+
+  ci-ok:
+    name: CI ok
+    needs: [detect, dart, mobile]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for r in $RESULTS; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::A CI job ended with $r"; exit 1 ;;
+            esac
+          done
