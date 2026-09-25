@@ -182,7 +182,7 @@ Done when the rules are signed off, the known bugs are fixed, the repo is restru
 | M0.1 | Write the project README and milestone tracker | Done | 25 Sep 2026 |
 | M0.2 | Draft board layout and dice widget | Done | Before 25 Sep 2026 |
 | M0.3 | Decide rules R1 to R8 | Not started | |
-| M0.4 | Fix bugs B1 to B8 | Not started | |
+| M0.4 | Fix bugs B1 to B8. B1, B4, B5 and B6 are fixed | In progress | |
 | M0.5 | Choose the final brand name and Android package id | Not started | |
 | M0.6 | Restructure the repo into apps/mobile, packages/ludo_engine and server | Not started | |
 | M0.7 | Set up GitHub Actions for CI, Android releases and server deploys | In progress | |
@@ -276,6 +276,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M0.1 | README rewritten in plain language, milestone tracker added |
 | 25 Sep 2026 | M0.1 | Paid play moved into the first release, wallet and paid table tasks added |
 | 25 Sep 2026 | M0.7 | CI and CD workflows written, Android release signing added to Gradle |
+| 25 Sep 2026 | M0.4 | Fixed the crash on a 6, wired login to the auth service, fixed the back link on register, replaced the counter test |
 
 ## 5. Scope of the first release
 

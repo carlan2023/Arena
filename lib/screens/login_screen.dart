@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'register_screen.dart';
 import '../widgets/custom_button.dart';
 import '../services/auth_service.dart';
 
@@ -17,13 +16,33 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
 
-  void _login() async {
-    if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Logging in...')));
-      // TODO: connect to backend later
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final user = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      if (!mounted) return;
+      if (user != null) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Login failed')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override

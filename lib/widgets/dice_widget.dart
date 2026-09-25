@@ -52,7 +52,7 @@ class _DiceWidgetState extends State<DiceWidget>
         assetName = 'assets/dice5.png';
         break;
       case 6:
-        assetName = 'assets/dice6).png';
+        assetName = 'assets/dice6.png';
         break;
       default:
         assetName = 'assets/dice6.png';
