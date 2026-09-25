@@ -114,32 +114,32 @@ These need a decision from Allan before the engine is final. The engine will hav
 
 ## 3. Current state of the code
 
-The Flutter project is named `arena` and lives at github.com/carlan2023/Arena.
+The Flutter project is named `arena` and lives at github.com/carlan2023/Arena, in the apps/mobile folder.
 
 | File | What it does now |
 |---|---|
-| lib/main.dart | Routes for login, home, register and board, plus the theme |
-| lib/screens/login_screen.dart | Validates the form but never calls the auth service |
-| lib/screens/register_screen.dart | Calls the stub auth service, then opens home |
-| lib/screens/home_screen.dart | Shows a welcome message and nothing else. The board cannot be reached from the app |
-| lib/screens/board_screen.dart | Shows the board and dice, with separate layouts for narrow and wide screens |
-| lib/widgets/ludo_board.dart | Draws a 15 by 15 grid of colours. No track, no pieces |
-| lib/widgets/dice_widget.dart | One die that rolls on tap |
-| lib/services/auth_service.dart | Returns a made up user after one second |
-| test/widget_test.dart | Still the default Flutter counter test, which fails |
+| apps/mobile/lib/main.dart | Routes for login, home, register and board, plus the theme |
+| apps/mobile/lib/screens/login_screen.dart | Validates the form, calls the auth service and shows a loading state |
+| apps/mobile/lib/screens/register_screen.dart | Calls the stub auth service, then opens home |
+| apps/mobile/lib/screens/home_screen.dart | Shows a welcome message and nothing else. The board cannot be reached from the app |
+| apps/mobile/lib/screens/board_screen.dart | Shows the board and dice, with separate layouts for narrow and wide screens |
+| apps/mobile/lib/widgets/ludo_board.dart | Draws a 15 by 15 grid of colours. No track, no pieces |
+| apps/mobile/lib/widgets/dice_widget.dart | One die that rolls on tap |
+| apps/mobile/lib/services/auth_service.dart | Returns a made up user after one second |
+| apps/mobile/test | Smoke tests for login, register, the board and the dice |
 
 ### Known bugs
 
-| No. | Bug |
-|---|---|
-| B1 | The dice image for 6 is spelled assets/dice6).png, so the app crashes on every 6 |
-| B2 | The white inner squares of each home never show, because the corner colour rules run first |
-| B3 | The home arm colours do not line up with the corner colours |
-| B4 | Login never calls the auth service and the loading state never changes |
-| B5 | The link back to login on the register screen calls pop, but there is no screen to go back to |
-| B6 | The widget test is the Flutter counter template |
-| B7 | The Android package is still com.example.ludo_stake. It must change before the first Play Store upload, since it can never change afterwards |
-| B8 | .github/copilot-instructions.md describes an older version of the project |
+| No. | Bug | Status |
+|---|---|---|
+| B1 | The dice image for 6 is spelled assets/dice6).png, so the app crashes on every 6 | Fixed 25 Sep 2026 |
+| B2 | The white inner squares of each home never show, because the corner colour rules run first | Fixed 25 Sep 2026 |
+| B3 | The home arm colours do not line up with the corner colours | Fixed 25 Sep 2026 |
+| B4 | Login never calls the auth service and the loading state never changes | Fixed 25 Sep 2026 |
+| B5 | The link back to login on the register screen calls pop, but there is no screen to go back to | Fixed 25 Sep 2026 |
+| B6 | The widget test is the Flutter counter template | Fixed 25 Sep 2026 |
+| B7 | The Android package is still com.example.ludo_stake. It must change before the first Play Store upload, since it can never change afterwards | Waiting on M0.5 |
+| B8 | .github/copilot-instructions.md describes an older version of the project | Not started |
 
 We keep the project structure, the dice images and the folder layout. The email login will be replaced by phone number login. The grid board will be replaced by a drawn board driven by a track model, and the single die by two dice rolled on the server.
 
@@ -157,7 +157,7 @@ Google Play requires new personal developer accounts to run a closed test with a
 
 With every commit to main:
 
-1. Change the status of any task the commit moves forward. Use Not started, In progress, or Done.
+1. Change the status of any task the commit moves forward. Use Not started, In progress, Done, or Blocked. A blocked task says why in its task text.
 2. Enter the date in the Date done column when a task is finished.
 3. Add one line to the progress log with the date, the task IDs and a plain description. Start the commit message with the same task ID so git log links back to the tracker.
 4. Update the milestone summary if the overall status changed.
@@ -182,9 +182,9 @@ Done when the rules are signed off, the known bugs are fixed, the repo is restru
 | M0.1 | Write the project README and milestone tracker | Done | 25 Sep 2026 |
 | M0.2 | Draft board layout and dice widget | Done | Before 25 Sep 2026 |
 | M0.3 | Decide rules R1 to R8 | Not started | |
-| M0.4 | Fix bugs B1 to B8 | Not started | |
+| M0.4 | Fix bugs B1 to B8 | In progress | |
 | M0.5 | Choose the final brand name and Android package id | Not started | |
-| M0.6 | Restructure the repo into apps/mobile, packages/ludo_engine and server | Not started | |
+| M0.6 | Restructure the repo into apps/mobile, packages/ludo_engine and server | Done | 25 Sep 2026 |
 | M0.7 | Set up GitHub Actions for CI, Android releases and server deploys | In progress | |
 | M0.8 | Register the Google Play developer account | Not started | |
 | M0.9 | Wireframe the core screens in Figma, including the wallet | Not started | |
@@ -196,16 +196,16 @@ Done when a full game can be played offline against bots, with every rule in sec
 
 | ID | Task | Status | Date done |
 |---|---|---|---|
-| M1.1 | Game state model: track, home columns, pieces, blocks | Not started | |
-| M1.2 | Legal move generation for two dice | Not started | |
-| M1.3 | Block rules, including block capture | Not started | |
-| M1.4 | Exact finish and win detection | Not started | |
-| M1.5 | Rule settings for R1 to R8 | Not started | |
-| M1.6 | Unit tests covering every test case in section 2, with at least 95 percent coverage | Not started | |
+| M1.1 | Game state model: track, home columns, pieces, blocks | In progress | |
+| M1.2 | Legal move generation for two dice | In progress | |
+| M1.3 | Block rules, including block capture | In progress | |
+| M1.4 | Exact finish and win detection | In progress | |
+| M1.5 | Rule settings for R1 to R8 | In progress | |
+| M1.6 | Unit tests covering every test case in section 2, with at least 95 percent coverage | In progress | |
 | M1.7 | New board drawn with CustomPainter | Not started | |
 | M1.8 | Pieces, move highlights and animations | Not started | |
 | M1.9 | Two dice tray and move selection | Not started | |
-| M1.10 | Easy and normal bots | Not started | |
+| M1.10 | Easy and normal bots | In progress | |
 | M1.11 | Pass and play on one phone for internal testing | Not started | |
 
 ### M2 Online rooms and wallet
@@ -225,6 +225,7 @@ Done when two to four people can finish a game online from a shared WhatsApp lin
 | M2.9 | Double entry ledger for wallet balances and coins | Not started | |
 | M2.10 | Deposits through MTN MoMo and Airtel Money in the sandbox | Not started | |
 | M2.11 | Payment callbacks that are safe to receive twice | Not started | |
+| M2.12 | App connects to the server: login, create and join rooms, online game, reconnect | Not started | |
 
 ### M3 Matchmaking, paid tables and polish
 
@@ -276,6 +277,8 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M0.1 | README rewritten in plain language, milestone tracker added |
 | 25 Sep 2026 | M0.1 | Paid play moved into the first release, wallet and paid table tasks added |
 | 25 Sep 2026 | M0.7 | CI and CD workflows written, Android release signing added to Gradle |
+| 25 Sep 2026 | M0.6 | Contracts for the engine, protocol, wallet, bots and folder ownership agreed and frozen in docs/contracts, decisions logged in docs/decisions.md |
+| 25 Sep 2026 | M0.6 M0.4 | Flutter project moved to apps/mobile. Bugs B1 to B6 fixed with tests |
 
 ## 5. Scope of the first release
 
@@ -503,7 +506,7 @@ We use trunk based development. Everyone commits to main in small steps, and mai
 3. A task is done when it has tests, works on a low end Android phone, has its text translated, and the tracker in section 4 is updated.
 4. Rule changes go into section 2 first, then code, then tests.
 5. Passwords and keys never go into the repo.
-6. Important technical decisions get a short note in docs/adr.
+6. Important technical decisions get a short line in docs/decisions.md, and shared interfaces are written down in docs/contracts before they are built.
 7. Releases are tagged on main, for example v0.1.0.
 
 Commit messages start with the task ID when there is one, for example `M1.2 add legal move generation for two dice`.
@@ -545,6 +548,7 @@ Keep the upload keystore backed up outside GitHub. Losing it means the app can n
 ### Running the app
 
 ```
+cd apps/mobile
 flutter pub get
 flutter run
 flutter test

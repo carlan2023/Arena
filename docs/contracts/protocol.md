@@ -63,7 +63,7 @@ Every message has `"type"`. Client messages carry `"cseq"`, a counter the client
 |---|---|---|
 | room_state | `seq, room: Room, state: GameState?, deadline: int?, serverSeedHash: str?, you: {seat: int, color: str?}` | Reply to join_room, and broadcast when players join, leave, connect or disconnect in the lobby, and on game start. Full snapshot. `state` is engine GameState JSON, null before the start. `deadline` is epoch milliseconds when the current decision times out |
 | dice | `seq, color: str, values: [int, int], rollNumber: int, legalMoves: [Move], state: GameState, deadline: int, auto: bool` | After every roll. `auto` true when the server rolled on timeout. If legalMoves is empty the state already shows the turn passed |
-| state_patch | `seq, color: str, moves: [Move], captured: [{"color", "index"}], state: GameState, deadline: int?, auto: bool` | After a move list is applied. `auto` true for timeout and bot moves |
+| state_patch | `seq, color: str, moves: [Move], captured: [PieceRef as {"c", "i"}], state: GameState, deadline: int?, auto: bool` | After a move list is applied. `auto` true for timeout and bot moves |
 | player_status | `seq, seat: int, connected: bool, graceDeadline: int?, isBot: bool` | Disconnects, reconnects, bot takeover |
 | emote | `seq, seat: int, id: str` | |
 | game_over | `seq, ranking: [str], winners: [str], serverSeed: str, clientSeed: str, walletDelta: {str: int}` | Once. walletDelta maps userId to the change in their wallet, empty for free games |

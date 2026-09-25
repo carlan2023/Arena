@@ -4,6 +4,14 @@ import 'package:flutter/material.dart';
 class DiceWidget extends StatefulWidget {
   const DiceWidget({super.key});
 
+  /// Asset path of the image for a die showing [value] (1 to 6).
+  static String assetFor(int value) {
+    if (value < 1 || value > 6) {
+      throw RangeError.range(value, 1, 6, 'value');
+    }
+    return 'assets/dice$value.png';
+  }
+
   @override
   State<DiceWidget> createState() => _DiceWidgetState();
 }
@@ -25,6 +33,7 @@ class _DiceWidgetState extends State<DiceWidget>
   void rollDice() {
     _controller.forward(from: 0);
     Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
       setState(() {
         diceNumber = Random().nextInt(6) + 1;
       });
@@ -33,30 +42,7 @@ class _DiceWidgetState extends State<DiceWidget>
 
   @override
   Widget build(BuildContext context) {
-    String assetName;
-    // Use the project's dice asset naming if present, otherwise fall back to numeric names
-    switch (diceNumber) {
-      case 1:
-        assetName = 'assets/dice1.png';
-        break;
-      case 2:
-        assetName = 'assets/dice2.png';
-        break;
-      case 3:
-        assetName = 'assets/dice3.png';
-        break;
-      case 4:
-        assetName = 'assets/dice4.png';
-        break;
-      case 5:
-        assetName = 'assets/dice5.png';
-        break;
-      case 6:
-        assetName = 'assets/dice6).png';
-        break;
-      default:
-        assetName = 'assets/dice6.png';
-    }
+    final assetName = DiceWidget.assetFor(diceNumber);
 
     return GestureDetector(
       onTap: rollDice,
