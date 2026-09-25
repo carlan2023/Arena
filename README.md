@@ -1,596 +1,576 @@
-# Arena: Ugandan Ludo, online
+# Arena
 
-> Working name: **Arena**. Mobile-first app where Ugandans play Ludo by the rules they grew up with, against friends, strangers and bots. Free to play at launch; licensed real-money stakes are a later phase.
+Arena is a mobile app for playing Ugandan Ludo online with friends, strangers and bots. We are building for Android first, in Flutter.
 
-This README is the single source of context for the team. Read sections 1 to 4 before writing any code. Section 5 onward is reference.
+The game is free at launch. Real money staking comes later, and only once we have a legal route to run it.
 
----
+This file is the main reference for the team. The milestone tracker in section 4 is updated with every commit.
 
-## Contents
+## 1. The product
 
-1. [Product in one page](#1-product-in-one-page)
-2. [Ugandan Ludo rules (the spec)](#2-ugandan-ludo-rules-the-spec)
-3. [Where the code is today](#3-where-the-code-is-today)
-4. [Milestones to MVP](#4-milestones-to-mvp)
-5. [MVP scope](#5-mvp-scope)
-6. [Architecture](#6-architecture)
-7. [Design direction and UX](#7-design-direction-and-ux)
-8. [Growth strategy](#8-growth-strategy)
-9. [Monetisation (free phase)](#9-monetisation-free-phase)
-10. [Real-money phase: legal, payments, risk](#10-real-money-phase-legal-payments-risk)
-11. [Trust, fairness and anti-cheat](#11-trust-fairness-and-anti-cheat)
-12. [Metrics](#12-metrics)
-13. [Engineering workflow](#13-engineering-workflow)
-14. [Open questions](#14-open-questions)
-15. [Glossary](#15-glossary)
-16. [Sources](#16-sources)
+### Who it is for
 
----
+Our main players are young adults aged 18 to 35 in Kampala and other towns. Most use Android phones and watch their data. Once staking arrives, we also expect players who already use betting apps and want a game where skill matters.
 
-## 1. Product in one page
+### How people play
 
-**What it is.** A mobile-first online Ludo game built on the Ugandan variant: two dice, blocks that act as walls, block captures that need double sixes, exact finish, no safe squares. Global Ludo apps (Ludo King, Ludo Club) play the international single-die rules, so the rules themselves are our first differentiator.
-
-**Who it is for.**
-- Primary: young urban adults, 18 to 35, in Kampala and other towns. Android, data-conscious, social and competitive.
-- Secondary: people already on betting apps looking for a game where skill matters. They become the core audience once staking launches.
-
-**How people play at MVP.**
-- Online with friends: private room, share a link or code on WhatsApp.
-- Online with strangers: quick-match queue.
-- Versus computer: bots for practice and to fill empty seats in free games.
-- Modes: 1v1, 4-player free-for-all, 2v2 teams.
-
-**Business model, in two phases.**
-1. **Free phase (MVP):** virtual coins that can never be cashed out, rewarded ads, cosmetics. Builds the player base and proves the game.
-2. **Real-money phase (later):** players stake UGX 1,000 to 50,000 per game via MTN MoMo and Airtel Money; the platform keeps a 10 to 15% rake. Only possible with a licence route (see section 10). **Bots and AI seats never play in money games.**
-
-**Why we can win.**
-- Our rules, not the international ones. Nobody serves this variant well.
-- Built for Ugandan phones and networks: small download, low data per game, survives a dropped connection.
-- Local identity: Luganda UI, local look and feel, WhatsApp-native invites.
-- Trust: provably fair dice from day one, so the "the app is rigged" complaint has a real answer before money is involved.
-
----
-
-## 2. Ugandan Ludo rules (the spec)
-
-This is the source of truth for the rules engine. Any rule change goes through a PR to this section first, then code. Items marked **OPEN** need a decision from the product owner (Allan) before the engine is final; the engine should expose each one as a config flag so we can switch without rewrites.
-
-### 2.1 Board and pieces
-
-- Standard cross-shaped board: 52 shared track squares, one start square per colour, a 5-square home column per colour, then the finish (centre).
-- A piece travels 51 track squares plus 5 home column squares plus 1 step into the finish = **57 steps** from its start square.
-- 4 colours, 4 pieces each. Turn order is clockwise.
-
-### 2.2 Dice
-
-- Each turn a player rolls **two dice**.
-- Each die value can be used on a different piece, or **both values combined on one piece** (roll 3 and 5: move one piece 3 and another 5, or one piece 8).
-- A combined move is played as two steps (first die, then second die). Each intermediate landing must itself be legal (you cannot combine to jump a block you could not pass one die at a time). **OPEN:** confirm.
-- **Double 6 gives an extra roll** after the moves are played.
-- **OPEN:** does rolling double 6 three times in a row forfeit the turn (common in other variants)?
-- **OPEN:** do other doubles (1-1 to 5-5) give anything besides moving a block together (2.6)?
-
-### 2.3 Leaving home
-
-- A piece leaves home onto its start square when **either die shows a 6**. That 6 is consumed by the release.
-- The other die may move any piece, including the one just released.
-- Double 6 can release two pieces, or release one and move 6, then the extra roll follows.
-
-### 2.4 Movement obligations
-
-- **A player must move if any legal move exists.** Passing is not allowed while a legal move exists.
-- **Capturing is optional:** if several legal moves exist, the player may choose a non-capturing one.
-- **OPEN:** if both dice can be used, must the player use both? If only one can be used, may they pick which? Proposed default: use both when possible; if only one is usable, the player picks.
-- If no legal move exists for either die, the turn passes automatically.
-
-### 2.5 Capture
-
-- Landing exactly on a single opponent piece sends it back home.
-- **No bonus** for capturing (no extra roll, no extra steps).
-- **No safe squares.** Start squares are not safe either. The only protection is a block.
-
-### 2.6 Blocks
-
-A block is **2 or more pieces of the same colour on one square**.
-
-- **Opponents cannot pass a block.** An opponent piece behind it must wait or use its dice on other pieces.
-- **Own pieces:** your own pieces cannot jump over your block either; they may only **land exactly on it** (joining it, making it bigger). Interpretation of: "Own pieces of the same colour can pass over if the dice provide a figure that can land exactly on the block." **OPEN:** confirm this reading, or whether an exact landing lets the piece continue past on the other die.
-- **A block moves together on a double:** e.g. 4-4 lets the whole block move 4 squares as one unit. **OPEN:** does a 2-piece block on 4-4 move 4 (one die) or 8 (both dice)?
-
-### 2.7 Capturing a block
-
-- To capture a **2-piece block**, the attacker must first roll **double 6**. That earns the extra roll; on the extra roll, a die (or combined dice) must land the attacking piece **exactly** on the block.
-- If the attacker's distance roll is longer than the distance to the block, the attacker **may choose to pass the block** (the double 6 lifts the wall for that attacker for that turn).
-- A **3-piece block** needs **three sixes**, a **4-piece block** needs **four sixes**, plus the exact distance. **OPEN:** are these sixes counted across the chain of rolls in one turn (6-6 then a roll containing a 6), and does the final roll that supplies the distance count toward the sixes?
-- When a block is captured, **every piece in the block goes home**.
-
-### 2.8 Finishing
-
-- **Exact roll required.** A piece 4 steps from the finish can use a 4, or 1+3 split across dice, but not a 5. An overshooting die must be used elsewhere or is lost if nothing else is legal.
-- A player wins when all 4 pieces are in the finish.
-
-### 2.9 Game modes
-
-| Mode | Seats | Win condition |
-|---|---|---|
-| 1v1 | 2 players on opposite colours | First to finish all 4 pieces |
-| Free-for-all | 4 players | First to finish; the rest keep playing for 2nd and 3rd (**OPEN:** or end immediately?) |
-| 2v2 teams | Partners sit opposite | **OPEN:** team wins when both partners finish, or when the first partner finishes? |
-
-**2v2 specifics**
-- Partners **can** capture each other: by choice, or when it is the only legal move.
-- **OPEN:** can one piece of mine and one of my partner's form a joint block? Proposed default: no, blocks are single-colour.
-- **OPEN:** once a player finishes, do they roll for their partner? Proposed default: yes, it keeps them engaged.
-
-### 2.10 Timing (proposed, needed for online play)
-
-- 20 seconds per decision. On timeout the server plays the best legal move automatically.
-- 3 consecutive timeouts: in free games a bot takes over the seat; in money games the player forfeits.
-- 60-second grace period for reconnecting after a dropped connection.
-- Target game length: full game, 15 to 30 minutes.
-
-### 2.11 Worked examples (use as engine test cases)
-
-1. Red has all pieces home, rolls 6 and 3. Red releases a piece with the 6 and moves it 3. Result: piece on start+3.
-2. Blue piece is 5 squares behind a red 2-piece block, Blue rolls 4 and 6. Blue cannot use 6 on that piece (would pass the block). Blue may use 4 on it, and 6 elsewhere.
-3. Same position, Blue rolls 6-6, then 5 and 2 on the extra roll. Blue moves 5 onto the block; both red pieces go home. Blue may use 2 elsewhere.
-4. Same position, Blue rolls 6-6, then 6 and 3. Blue may move 6 past the block (wall lifted), no capture.
-5. Yellow piece 4 from finish, rolls 5 and 2. The 5 cannot be used on it. Yellow may move it 2, and must use the 5 on another piece if legal.
-
----
-
-## 3. Where the code is today
-
-Flutter project (`name: arena`), four commits, repo `github.com/carlan2023/Arena`.
-
-| Area | State |
+| Way to play | Description |
 |---|---|
-| `lib/main.dart` | Named routes: `/` login, `/home`, `/register`, `/board`. Purple Material theme. |
-| `lib/screens/login_screen.dart` | Form validates but **never calls** `AuthService` (TODO left in). |
-| `lib/screens/register_screen.dart` | Calls the stubbed `AuthService.register`, then goes to `/home`. |
-| `lib/screens/home_screen.dart` | Placeholder text only. No way to reach `/board` from the UI. |
-| `lib/screens/board_screen.dart` | Board plus dice, responsive wide/narrow layout. |
-| `lib/widgets/ludo_board.dart` | Static 15x15 `GridView`, colours only. No track model, no pieces. |
-| `lib/widgets/dice_widget.dart` | **One** die, random on tap, local `Random()`. |
-| `lib/services/auth_service.dart` | Stub, returns fake users after 1s. |
-| Tests | `test/widget_test.dart` is Flutter's counter template and will fail. |
+| Friends | Create a private room and share the link or code on WhatsApp |
+| Quick match | Join a queue and get matched with other players |
+| Practice | Play against the computer |
 
-### 3.1 Bugs to fix first
+Game modes are 1v1, four player free for all, and 2v2 teams.
 
-1. `dice_widget.dart`: face 6 loads `assets/dice6).png` (typo). The app throws whenever a 6 is rolled.
-2. `ludo_board.dart`: the "inner white home" rules sit below the corner rules, so they never run. Homes render as flat colour.
-3. `ludo_board.dart`: colours of the home arms do not match the corner homes consistently (e.g. red corner top-left, red arm drawn on the top column). Will be replaced by the track model anyway.
-4. `login_screen.dart`: `_isLoading` never changes and the service is never called.
-5. `register_screen.dart`: "Already have an account?" calls `Navigator.pop`, but login used `pushReplacementNamed`, so there is nothing to pop.
-6. `test/widget_test.dart`: counter test, delete and replace.
-7. Android package id still `com.example.ludo_stake`, label `ludo_stake`. Must change before the first Play upload; the id can never change after publishing. Proposed: `ug.arena.ludo` (or matching the final brand's domain).
-8. `.github/copilot-instructions.md` describes the old empty state. Update or point it at this README.
+### How we make money
 
-### 3.2 What we keep vs replace
+In the free phase players earn and spend coins that can never be cashed out. Revenue comes from rewarded ads and cosmetic items.
 
-- **Keep:** project scaffold, dice assets, folder conventions (`screens/`, `widgets/`, `services/`, `models/`).
-- **Replace:** email/password auth with phone-number OTP (section 6.4); `GridView` board with a `CustomPainter` board driven by the track model; single die with a two-dice tray driven by server rolls.
+In the paid phase players stake between UGX 1,000 and UGX 50,000 through MTN MoMo or Airtel Money, and we keep 10 to 15 percent of each pot. Bots never sit at a paid table.
 
----
+### Why people will choose Arena
 
-## 4. Milestones to MVP
+1. It plays by our rules. Ludo King and Ludo Club use the international single die rules. Nobody serves the Ugandan game properly.
+2. It suits local phones and networks: small download, low data use, and games that survive a dropped connection.
+3. It feels local, with Luganda in the app and invites that go straight to WhatsApp.
+4. The dice can be checked. Every roll can be verified after the game, so players can trust the results before any money is involved.
 
-**Target: public Android MVP by 31 December 2026.** Team: 2 developers, mostly one at a time. This is tight (about 13 weeks). The plan front-loads the rules engine because everything else depends on it, and marks the first thing to cut if we slip.
+## 2. Game rules
 
-> **Play Store gotcha.** New *personal* Google Play developer accounts must run a closed test with at least 12 testers for 14 continuous days before they can publish to production. Either register the Play account as an **organisation** (needs a D-U-N-S number, which takes time, start now) or start the closed test no later than **14 December**. This date is baked into M4.
+The rules engine follows this section exactly. If a rule changes, update this section first, then the code and tests.
 
-| # | Milestone | Dates | Exit criteria |
+### Board and pieces
+
+The board has 52 track squares, a start square for each colour, and a home column of 5 squares leading to the centre. A piece needs 57 steps from its start square to finish. There are four colours with four pieces each, and turns go clockwise.
+
+### Dice
+
+Each turn a player rolls two dice. The values can be used on two different pieces or added together on one piece. With a 3 and a 5, you can move one piece 3 and another 5, or move one piece 8. A combined move is played as two steps, and each step must be legal on its own.
+
+A double 6 earns another roll after you have played your moves.
+
+### Leaving home
+
+A piece leaves home when either die shows a 6. That 6 is used up placing the piece on its start square. The other die can move any piece, including the one just released.
+
+### Moving
+
+If a legal move exists, you must play it. Capturing is optional, so you can pick a different move instead. If no move is possible, the turn passes.
+
+### Capturing
+
+Landing on a single opponent piece sends it home. There is no bonus for a capture and there are no safe squares on the board, start squares included. The only protection is a block.
+
+### Blocks
+
+A block is two or more pieces of the same colour on one square.
+
+1. Opponent pieces cannot pass a block.
+2. Your own pieces cannot jump over your block either. They can join it by landing on it exactly.
+3. On a double, the whole block can move together.
+
+### Capturing a block
+
+To capture a block of two, the attacker must first roll a double 6. On the extra roll, the attacker has to land exactly on the block. If the roll carries the piece beyond the block, the attacker may move past it, because the double 6 opens the block for that turn.
+
+A block of three needs three sixes and a block of four needs four sixes, plus the exact distance. When a block is captured, every piece in it goes home.
+
+### Finishing
+
+A piece needs an exact roll to finish. A piece 4 steps from the centre can use a 4, or a 1 and a 3, but not a 5. A player wins when all four pieces are home.
+
+### Teams
+
+In 2v2, partners sit opposite each other. A player may capture a partner's piece by choice, and must do so if it is the only legal move.
+
+### Online timing
+
+Each decision has 20 seconds. When time runs out, the server plays the best legal move. After three timeouts in a row, a bot takes over in free games and the player forfeits in paid games. A player who disconnects has 60 seconds to rejoin. A full game should take 15 to 30 minutes.
+
+### Test cases for the engine
+
+| Situation | Expected result |
+|---|---|
+| Red has every piece at home and rolls 6 and 3 | Red releases a piece with the 6 and moves it 3 |
+| A blue piece is 5 squares behind a red block of two and rolls 4 and 6 | The 4 can move that piece, the 6 cannot. The 6 must be used elsewhere |
+| Same position, Blue rolls 6 and 6, then 5 and 2 | Blue lands on the block with the 5 and both red pieces go home |
+| Same position, Blue rolls 6 and 6, then 6 and 3 | Blue may move 6 past the block. Nothing is captured |
+| A yellow piece is 4 steps from the centre and rolls 5 and 2 | The 5 cannot move that piece. The 2 can |
+
+### Rules still to decide
+
+These need a decision from Allan before the engine is final. The engine will have a setting for each one so they can change without a rewrite.
+
+| No. | Question |
+|---|---|
+| R1 | Do three double 6s in a row cancel the turn? |
+| R2 | Must both dice be used when possible, and who chooses if only one can be used? |
+| R3 | Does a block of two on 4 and 4 move 4 squares or 8? |
+| R4 | After landing exactly on its own block, can a piece continue past on the second die? |
+| R5 | For blocks of three and four, are the sixes counted across all rolls in one turn? |
+| R6 | In free for all, does play continue for second and third place? |
+| R7 | In 2v2, does the team win when both partners finish or when the first one does? |
+| R8 | In 2v2, can partners form a block together, and does a finished player roll for the partner? |
+
+## 3. Current state of the code
+
+The Flutter project is named `arena` and lives at github.com/carlan2023/Arena.
+
+| File | What it does now |
+|---|---|
+| lib/main.dart | Routes for login, home, register and board, plus the theme |
+| lib/screens/login_screen.dart | Validates the form but never calls the auth service |
+| lib/screens/register_screen.dart | Calls the stub auth service, then opens home |
+| lib/screens/home_screen.dart | Shows a welcome message and nothing else. The board cannot be reached from the app |
+| lib/screens/board_screen.dart | Shows the board and dice, with separate layouts for narrow and wide screens |
+| lib/widgets/ludo_board.dart | Draws a 15 by 15 grid of colours. No track, no pieces |
+| lib/widgets/dice_widget.dart | One die that rolls on tap |
+| lib/services/auth_service.dart | Returns a made up user after one second |
+| test/widget_test.dart | Still the default Flutter counter test, which fails |
+
+### Known bugs
+
+| No. | Bug |
+|---|---|
+| B1 | The dice image for 6 is spelled assets/dice6).png, so the app crashes on every 6 |
+| B2 | The white inner squares of each home never show, because the corner colour rules run first |
+| B3 | The home arm colours do not line up with the corner colours |
+| B4 | Login never calls the auth service and the loading state never changes |
+| B5 | The link back to login on the register screen calls pop, but there is no screen to go back to |
+| B6 | The widget test is the Flutter counter template |
+| B7 | The Android package is still com.example.ludo_stake. It must change before the first Play Store upload, since it can never change afterwards |
+| B8 | .github/copilot-instructions.md describes an older version of the project |
+
+We keep the project structure, the dice images and the folder layout. The email login will be replaced by phone number login. The grid board will be replaced by a drawn board driven by a track model, and the single die by two dice rolled on the server.
+
+## 4. Milestones and progress
+
+### Target
+
+The public Android release is due by 31 December 2026, with mid January 2027 as the fallback. The team is two developers, usually working one at a time.
+
+Google Play requires new personal developer accounts to run a closed test with at least 12 testers for 14 days before going live. So closed testing must start by 14 December, unless we register as an organisation.
+
+### How to keep this tracker updated
+
+With every commit to main:
+
+1. Change the status of any task the commit moves forward. Use Not started, In progress, or Done.
+2. Put the short commit hash in the Commit column when a task is done.
+3. Add one line to the progress log with the date, hash and a plain description.
+4. Update the milestone summary if the overall status changed.
+
+### Milestone summary
+
+| Milestone | Dates | Status |
+|---|---|---|
+| M0 Foundations | 28 Sep to 9 Oct 2026 | In progress |
+| M1 Rules engine and offline play | 12 Oct to 6 Nov 2026 | Not started |
+| M2 Online private rooms | 9 Nov to 27 Nov 2026 | Not started |
+| M3 Matchmaking and polish | 30 Nov to 11 Dec 2026 | Not started |
+| M4 Closed beta | 14 Dec to 28 Dec 2026 | Not started |
+| Release | 29 Dec to 31 Dec 2026 | Not started |
+
+### M0 Foundations
+
+Done when the rules are signed off, the known bugs are fixed, the repo is restructured and CI is running.
+
+| ID | Task | Status | Commit |
 |---|---|---|---|
-| M0 | Foundations | 28 Sep to 9 Oct | Rules in section 2 signed off (all OPEN items closed). Bugs in 3.1 fixed. Repo restructured into `apps/mobile`, `packages/ludo_engine`, `server/`. CI running analyze + tests. Brand name and package id decided. Play developer account registered. Figma wireframes for 8 core screens. |
-| M1 | Rules engine + offline play | 12 Oct to 6 Nov | `ludo_engine` implements every rule in section 2 with 95%+ test coverage, all worked examples pass. New board renders pieces, blocks, legal-move highlights, animations. Full game playable **offline vs bots** (easy/normal) and pass-and-play for internal testing. |
-| M2 | Online private rooms | 9 Nov to 27 Nov | Game server live on staging. Phone OTP login. Create room, share WhatsApp link, 2 to 4 players join, full online game with server dice, turn timer, reconnect. Match history saved. |
-| M3 | Matchmaking + polish | 30 Nov to 11 Dec | Quick-match queue (1v1, 4-player). Bots fill empty seats after 20s in free games. Profiles, avatars, coins, daily reward. Luganda strings. Sounds, haptics, tutorial. **2v2 teams: stretch goal, first to cut to January.** |
-| M4 | Closed beta | 14 Dec to 28 Dec | 12+ testers (aim for 50 to 100) on Play closed testing for 14 days. Crash-free sessions 99%+. Top bugs fixed. Store listing, privacy policy, data safety form done. |
-| MVP | Public release | 29 to 31 Dec | Production release in Uganda on Google Play. Realistic fallback: mid-January 2027 if M1 slips. |
+| M0.1 | Write the project README | Done | 163efbe |
+| M0.2 | Draft board layout and dice widget | Done | 0485f45 |
+| M0.3 | Decide rules R1 to R8 | Not started | |
+| M0.4 | Fix bugs B1 to B8 | Not started | |
+| M0.5 | Choose the final brand name and Android package id | Not started | |
+| M0.6 | Restructure the repo into apps/mobile, packages/ludo_engine and server | Not started | |
+| M0.7 | Set up GitHub Actions for format, analyze and tests | Not started | |
+| M0.8 | Register the Google Play developer account | Not started | |
+| M0.9 | Wireframe the eight core screens in Figma | Not started | |
 
-### After MVP
+### M1 Rules engine and offline play
 
-| Phase | When | Focus |
+Done when a full game can be played offline against bots, with every rule in section 2 covered by tests.
+
+| ID | Task | Status | Commit |
+|---|---|---|---|
+| M1.1 | Game state model: track, home columns, pieces, blocks | Not started | |
+| M1.2 | Legal move generation for two dice | Not started | |
+| M1.3 | Block rules, including block capture | Not started | |
+| M1.4 | Exact finish and win detection | Not started | |
+| M1.5 | Rule settings for R1 to R8 | Not started | |
+| M1.6 | Unit tests covering every test case in section 2, with at least 95 percent coverage | Not started | |
+| M1.7 | New board drawn with CustomPainter | Not started | |
+| M1.8 | Pieces, move highlights and animations | Not started | |
+| M1.9 | Two dice tray and move selection | Not started | |
+| M1.10 | Easy and normal bots | Not started | |
+| M1.11 | Pass and play on one phone for internal testing | Not started | |
+
+### M2 Online private rooms
+
+Done when two to four people can finish a game online from a shared WhatsApp link.
+
+| ID | Task | Status | Commit |
+|---|---|---|---|
+| M2.1 | Dart game server with WebSocket rooms | Not started | |
+| M2.2 | Server dice with verifiable rolls | Not started | |
+| M2.3 | Phone number login with OTP | Not started | |
+| M2.4 | Create room, join by code or link | Not started | |
+| M2.5 | Turn timer and automatic moves | Not started | |
+| M2.6 | Reconnect within 60 seconds | Not started | |
+| M2.7 | Save match history and move log to Postgres | Not started | |
+| M2.8 | Staging server running | Not started | |
+
+### M3 Matchmaking and polish
+
+Done when strangers can find a game within 20 seconds and the app is ready for testers.
+
+| ID | Task | Status | Commit |
+|---|---|---|---|
+| M3.1 | Quick match queue for 1v1 and four players | Not started | |
+| M3.2 | Bots fill empty seats in free games after 20 seconds | Not started | |
+| M3.3 | Profiles and avatars | Not started | |
+| M3.4 | Coins and daily reward | Not started | |
+| M3.5 | Luganda translation | Not started | |
+| M3.6 | Sound and vibration | Not started | |
+| M3.7 | Interactive tutorial | Not started | |
+| M3.8 | 2v2 teams, which moves to January if time runs short | Not started | |
+
+### M4 Closed beta and release
+
+| ID | Task | Status | Commit |
+|---|---|---|---|
+| M4.1 | Closed test with at least 12 testers for 14 days | Not started | |
+| M4.2 | Crash free sessions at 99 percent or higher | Not started | |
+| M4.3 | Store listing, privacy policy and data safety form | Not started | |
+| M4.4 | Production release in Uganda | Not started | |
+
+### After release
+
+| Version | When | Focus |
 |---|---|---|
-| v1.1 | Jan 2027 | 2v2 (if cut), friends list, rematch, quick-chat in Luganda, shareable game results. |
-| v1.2 | Feb to Mar 2027 | Weekly tournaments (coins), leaderboards, seasons, cosmetics shop, iOS build. |
-| Money readiness | In parallel from Jan 2027 | Legal opinion, licence route, KYC and wallet ledger design, payment partner (section 10). |
-| Real money | Earliest Q3 2027, **only** once a licence route is secured | 1v1 staked games first, then others. |
+| 1.1 | January 2027 | 2v2 if it slipped, friends list, rematch, quick chat, shareable results |
+| 1.2 | February and March 2027 | Coin tournaments, leaderboards, seasons, cosmetics shop, iOS |
+| Paid play preparation | From January 2027 | Legal opinion, licence route, KYC, wallet, payment partner |
+| Paid play | Q3 2027 at the earliest, and only with a licence route | 1v1 paid tables first |
 
-### Weekly rhythm
+### Progress log
 
-- Monday: pick issues for the week from the milestone board.
-- Friday: 30-minute demo on a real phone, update milestone status in this README.
-
----
-
-## 5. MVP scope
-
-**Must have (MVP)**
-- Phone-number login (OTP), display name, avatar.
-- Rules engine for the full Ugandan variant.
-- Offline vs bots (easy, normal).
-- Online private rooms via link/code with WhatsApp share.
-- Quick match: 1v1 and 4-player.
-- Server-authoritative dice and moves, turn timer, auto-move, reconnect.
-- Interactive tutorial that teaches blocks and block capture.
-- Virtual coins (entry to coin games, daily reward). Never cashable.
-- English and Luganda.
-- Crash reporting and analytics.
-
-**Should have (MVP if time, else v1.1)**
-- 2v2 teams.
-- Rematch button, recent opponents, add friend.
-- Quick-chat emotes and preset phrases (no free text: no moderation burden).
-
-**Later**
-- Tournaments, leaderboards, seasons, cosmetics shop, replays, spectating, iOS, private-room house rules, other local languages, Kenya/Rwanda.
-
-**Not doing**
-- Free-text chat at MVP (moderation cost, abuse risk).
-- Real money before a licence route exists.
-- Desktop/web builds (the scaffolds can stay, no effort spent on them).
-
----
-
-## 6. Architecture
-
-### 6.1 Overview
-
-```
- Flutter app (Android first)                 Backend (single region)
- +-------------------------+     WSS      +-----------------------------+
- | UI (screens, widgets)   | <----------> | Game server (Dart)          |
- | State (Riverpod)        |              |  - rooms, turns, timers     |
- | ludo_engine (shared)    |              |  - ludo_engine (same code)  |
- | Offline bots            |     HTTPS    |  - crypto RNG, fair dice    |
- +-------------------------+ <----------> | REST API (Dart)             |
-                                          |  - auth, profiles, coins    |
-                                          +-------------+---------------+
-                                                        |
-                                           +------------+-----------+
-                                           | PostgreSQL | Redis     |
-                                           | (truth)    | (rooms,   |
-                                           |            |  queues)  |
-                                           +------------+-----------+
-```
-
-### 6.2 The key decision: one rules engine, written once, in Dart
-
-The Ugandan rules are intricate (two dice, blocks, multi-six block captures). If the rules exist twice, once on the client and once on the server, they will drift and cause "the app cheated me" bugs. So:
-
-- `packages/ludo_engine` is a **pure Dart package**: no Flutter, no I/O, fully deterministic. `GameState`, `legalMoves(state, dice)`, `apply(state, move)`, `RulesConfig` (flags for every OPEN item).
-- The **app** uses it to highlight legal moves, run offline bot games and animate predicted moves.
-- The **server** uses the same package as the authority: it rolls dice, validates every move, and broadcasts the result.
-
-This is why the recommendation is a **Dart backend**, not Node or Python.
-
-### 6.3 Backend recommendation
-
-| Component | Choice | Why |
+| Date | Commit | Change |
 |---|---|---|
-| Game server | Dart, `shelf` + `shelf_web_socket` (or `dart_frog`) | Shares `ludo_engine`; one language across the team. |
-| Database | PostgreSQL (managed) | Users, matches, move logs, coin ledger. Relational, needed for money later. |
-| Cache / queues | Redis | Live room state snapshots, matchmaking queues, reconnect tokens. |
-| Auth | Phone OTP via Firebase Auth, or Africa's Talking SMS with our own token service | Phone numbers are how Ugandans identify; matches MoMo later. Server verifies tokens. |
-| Push | Firebase Cloud Messaging | "Your friend invited you", "your turn". |
-| Crash + analytics | Firebase Crashlytics + Analytics | Free, standard. |
-| Hosting | One VM (e.g. 2 vCPU) for game + API, managed Postgres | Turn-based games need little CPU. Scale out later with Redis-backed rooms. |
+| | 8a00a66 | First commit, Flutter project created |
+| | fb201ea | Login, register and home screens added |
+| | 0485f45 | Board layout and dice widget |
+| | 98ac4dc | Merged main |
+| 25 Sep 2026 | 163efbe | Project README added |
 
-**Alternatives considered**
-- **Firebase Realtime DB / Firestore as the game backend:** fastest start, but the client would decide moves and dice. Impossible to make trustworthy for money. Rejected for game logic; fine for push and analytics.
-- **Nakama (Heroic Labs):** strong built-ins (matchmaker, leaderboards, wallet), but server logic is in Go/TypeScript/Lua, so the rules would be written twice. Worth revisiting if we outgrow our own server.
-- **Colyseus (Node.js):** good room model, but no official Dart client and again two rule implementations.
+## 5. Scope of the first release
 
-### 6.4 Client stack
+| Included | Next version if time runs out | Later |
+|---|---|---|
+| Phone login, name and avatar | 2v2 teams | Tournaments and leaderboards |
+| Full Ugandan rules engine | Rematch and friends | Cosmetics shop |
+| Offline play against bots | Quick chat phrases | Replays and spectating |
+| Private rooms shared on WhatsApp | | iOS |
+| Quick match for 1v1 and four players | | Custom house rules |
+| Server dice, timer, reconnect | | More languages, Kenya and Rwanda |
+| Tutorial | | |
+| Coins that cannot be cashed out | | |
+| English and Luganda | | |
+| Crash reporting and analytics | | |
 
-- Flutter, Android first (min SDK 23, test on 2 GB RAM phones).
-- State: Riverpod. Routing: go_router (deep links for room invites).
-- Board: `CustomPainter` for the board, lightweight widgets for pieces, implicit animations. No game engine (Flame) needed.
-- Localisation: `flutter_localizations` + ARB files (`en`, `lg`).
-- Deep links: Android App Links, `https://<domain>/r/<roomCode>` opens the room, falls back to the Play Store.
+We are not building free text chat, paid play or desktop and web builds for the first release.
 
-### 6.5 Real-time protocol (sketch)
+## 6. Technical design
 
-JSON over WebSocket. Server is always authoritative.
+### One rules engine for app and server
 
-```
-client -> server   join_room {roomCode, token}
-server -> client   room_state {seats, rules, state, turn, deadline}
-client -> server   roll {}
-server -> client   dice {values:[6,3], proof, legalMoves:[...]}
-client -> server   move {steps:[{piece:2, die:0},{piece:2, die:1}]}
-server -> client   state_patch {moves, captures, nextTurn, deadline}
-server -> client   game_over {ranking, coinsDelta}
-client -> server   emote {id}
-```
+The Ugandan rules are complicated. If the app and the server each had their own copy, they would drift apart and players would see disputed moves. So the rules live in one pure Dart package, packages/ludo_engine, with no Flutter or network code.
 
-- Every message carries a sequence number; on reconnect the client sends its last seq and gets a full snapshot.
-- Target under 2 KB per turn so a full game uses well under 200 KB of data.
+The app uses it to highlight legal moves, run bot games offline and animate moves. The server uses the same package to roll the dice, check every move and send the result to all players. The server always has the final say.
 
-### 6.6 Data model (first cut)
+This is the main reason the backend is written in Dart.
 
-- `users` (id, phone, display_name, avatar, locale, created_at, dob, kyc_status)
-- `friendships` (user_a, user_b, status)
-- `rooms` (code, mode, rules_config, created_by, status)
-- `matches` (id, mode, started_at, ended_at, server_seed_hash, server_seed, stake, rake)
-- `match_players` (match_id, user_id, colour, seat, is_bot, finish_rank)
-- `moves` (match_id, seq, user_id, dice, steps, created_at): full event log, lets us replay and resolve disputes
-- `accounts` + `ledger_entries`: **double-entry ledger even for virtual coins**, so the money phase reuses a tested design
+### Components
 
-### 6.7 Repository layout (target)
+| Part | Choice | Reason |
+|---|---|---|
+| App | Flutter, Android first, minimum SDK 23 | Existing code base |
+| App state and routing | Riverpod and go_router | Standard, and handles invite links |
+| Board | CustomPainter with simple animations | Light enough for low end phones |
+| Game server | Dart with shelf and web sockets | Shares the rules engine |
+| Database | PostgreSQL | Users, matches, move logs, coin ledger |
+| Cache and queues | Redis | Live rooms, matchmaking, reconnects |
+| Login | Phone OTP through Firebase Auth or Africa's Talking | Phone numbers are how people here identify, and they match mobile money later |
+| Notifications, crashes, analytics | Firebase | Free and well supported |
+| Hosting | One virtual machine plus managed Postgres | A turn based game needs little computing power |
 
-```
-apps/mobile/          Flutter app (move current lib/ here)
-packages/ludo_engine/ Pure Dart rules engine + tests
-server/               Dart game server + REST API
-docs/                 Rules diagrams, ADRs (architecture decision records)
-.github/workflows/    CI
-```
+We looked at Firebase as the whole backend, but the phone would decide the dice, which cannot be trusted with money. Nakama and Colyseus are both good game servers, but each would mean writing the rules a second time in another language.
 
----
+### Messages between app and server
 
-## 7. Design direction and UX
+Messages are JSON over a secure web socket. Each one carries a sequence number so a reconnecting phone can catch up.
 
-### 7.1 Principles
+| Direction | Message | Contents |
+|---|---|---|
+| App to server | join_room | Room code and login token |
+| Server to app | room_state | Seats, rules, board, whose turn, time left |
+| App to server | roll | Nothing |
+| Server to app | dice | Two values, proof and legal moves |
+| App to server | move | The pieces and dice chosen |
+| Server to app | state_patch | Moves, captures, next turn |
+| Server to app | game_over | Final ranking and coins won or lost |
 
-1. **Portrait, one thumb.** Everything the player taps during a turn sits in the bottom third.
-2. **The rules teach themselves.** Legal moves are always highlighted; illegal ones never selectable.
-3. **Built for real phones.** Smooth on a 2 GB Android, APK under 30 MB, playable on 3G.
-4. **Local, not generic.** Ugandan colour, pattern, language and humour.
+Each turn should use under 2 KB, keeping a full game under 200 KB.
 
-### 7.2 Game screen layout
+### Database tables
 
-```
-+----------------------------------+
-| [<]  1v1 · Coins 200   [⋮]       |
-| (P2 avatar, timer ring)          |
-|                                  |
-|          BOARD (full width)      |
-|                                  |
-| (P1 avatar, timer ring)          |
-|  [ die ][ die ]   [ ROLL ]       |
-|  quick-chat  emotes              |
-+----------------------------------+
-```
+| Table | Holds |
+|---|---|
+| users | Phone, display name, avatar, language, date of birth, verification status |
+| friendships | Pairs of users and status |
+| rooms | Code, mode, rule settings, owner, status |
+| matches | Mode, times, dice seed and its hash, stake, our share |
+| match_players | Player, colour, seat, whether a bot, finishing place |
+| moves | Every move in order, for replays and disputes |
+| accounts and ledger_entries | Double entry ledger for coins, reused later for money |
 
-- Board fills the width; player cards at the board's corners next to their homes, each with a countdown ring.
-- The two dice sit in a tray at the bottom. Tap ROLL (or shake the phone, optional).
+### Repository layout
 
-### 7.3 Two-dice move selection (the hardest UX problem)
+| Folder | Contents |
+|---|---|
+| apps/mobile | The Flutter app, moved from the current lib folder |
+| packages/ludo_engine | The rules engine and its tests |
+| server | Game server and API |
+| docs | Rule diagrams and records of technical decisions |
+| .github/workflows | CI |
 
-With two dice, a player may move one piece twice, two pieces once, or release plus move. Proposed flow:
+## 7. Design
 
-1. After the roll, every piece with a legal move glows.
-2. Tap a piece: ghost markers show where it lands with die A, die B and A+B.
-3. Tap a ghost to move. If a die remains, repeat.
-4. If only one legal move sequence exists, play it automatically after 0.5s.
-5. An "undo" button is available until the turn is confirmed (server confirms only after the last die, so undo is free).
+### Principles
 
-### 7.4 Blocks and captures
+1. Portrait layout, playable with one thumb. Everything touched during a turn sits in the bottom third of the screen.
+2. The game teaches the rules. Legal moves always light up and illegal ones cannot be selected.
+3. It must run smoothly on a phone with 2 GB of memory, install under 30 MB and play on 3G.
+4. It should look and sound Ugandan.
 
-- A block shows stacked pieces with a count badge and a subtle wall bar across the track.
-- When an opponent rolls 6-6 and can attack a block, the wall visibly cracks; that is the teaching moment.
-- Capture animation: piece flies home with a short sound. Keep it under 700 ms.
+### Game screen
 
-### 7.5 Visual identity
+The board fills the screen width. Each player's card sits at the board corner next to their home, with a ring counting down their time. The two dice and the roll button sit at the bottom, with quick chat just below.
 
-- Replace the default purple Material theme.
-- Board themes inspired by local textiles and materials (bark cloth texture, kitenge patterns). Default theme should be clean and high contrast; decorative themes become cosmetics.
-- **Colour-blind safe:** each colour also has a shape or icon on its pieces.
-- Bold, friendly type; large numerals on dice.
+### Choosing a move with two dice
 
-### 7.6 Language and tone
+This is the hardest part of the interface to get right.
 
-- English and Luganda at launch. Luganda strings written and reviewed by native speakers, not machine-translated.
-- Preset quick-chat phrases (friendly banter) in both languages. No free text at MVP.
+1. After the roll, every piece that can move lights up.
+2. Tapping a piece shows where it would land with the first die, the second die and both together.
+3. Tapping one of those spots makes the move. If a die is left, repeat.
+4. When only one sequence of moves is possible, the game plays it after half a second.
+5. An undo button stays available until the last die is used.
 
-### 7.7 Onboarding
+### Blocks and captures
 
-- Phone number, OTP, name, avatar: under 60 seconds.
-- 3-minute interactive tutorial vs a bot that forces each Ugandan rule once: two-dice release, combining dice, a block, a double-six block capture, exact finish. Reward coins at the end.
-- Skip button for people who already know the rules.
+A block shows stacked pieces with a count and a bar across the track. When an opponent rolls a double 6 and can reach a block, the bar cracks, which teaches the rule. A captured piece flies home with a short sound, in under a second.
 
-### 7.8 Core screens (for Figma in M0)
+### Look and feel
 
-1. Splash / phone login
+We will replace the default purple theme. The standard board should be clean with strong contrast. Themes based on local textiles such as bark cloth and kitenge can be sold as cosmetics. Each colour also gets a shape on its pieces so colour blind players can tell them apart.
+
+### Language
+
+The app launches in English and Luganda. Luganda text must be written and checked by native speakers. Quick chat uses ready made phrases in both languages, with no free typing in the first release.
+
+### First time players
+
+Sign up with phone number, code, name and avatar in under a minute. Then a three minute tutorial against a bot walks through each Ugandan rule once: leaving home with a 6, combining dice, making a block, breaking a block with a double 6, and finishing exactly. Players who know the rules can skip it. Finishing the tutorial earns coins.
+
+### Core screens for Figma
+
+1. Login with phone number
 2. Profile setup
-3. Home (Play Now, Play with Friends, Practice vs Bot, coins, daily reward)
-4. Mode picker (1v1, 4-player, 2v2, coin entry)
-5. Private room lobby (code, share to WhatsApp, seats filling)
-6. Matchmaking (searching, bot fallback countdown)
-7. Game screen
-8. Result screen (rank, coins, rematch, share)
+3. Home: play now, play with friends, practice, coins, daily reward
+4. Choose mode and coin entry
+5. Private room lobby with WhatsApp share
+6. Searching for players
+7. Game
+8. Results with rematch and share
 
----
+## 8. Growth
 
-## 8. Growth strategy
+1. Every private room creates a link, and every result screen can be shared as an image. Both the inviter and the new player get coins when an invite brings someone in.
+2. Start on campuses such as Makerere, Kyambogo, MUBS and Ndejje, with student ambassadors and hall tournaments.
+3. Make exciting moments, like breaking a block with a double 6, easy to share on TikTok and WhatsApp Status.
+4. Run Arena nights at places where people already play Ludo.
+5. Lead with the rules: this is Ludo the way we play it.
+6. Keep players coming back with daily rewards, weekly tournaments, streaks and rematches.
+7. Mention low data use in the store listing.
 
-- **WhatsApp is the loop.** Every private room produces a link; the result screen offers "Share result" as an image. Invites that bring a new player reward both with coins.
-- **Campuses first.** Makerere, Kyambogo, MUBS, Ndejje and others: campus ambassadors, hall-vs-hall coin tournaments. Dense social groups, the exact target age.
-- **Short video.** A shareable clip or image of dramatic moments (block captured with 6-6) for TikTok and WhatsApp Status.
-- **Offline events.** Ludo is already played in bars, stages and hostels. Sponsored "Arena nights" where the physical game is played on phones.
-- **Rules as marketing.** "Ludo the way we play it" is the message. Ludo King does not do our blocks.
-- **Retention:** daily reward, weekly tournament, streaks, friends list, rematch.
-- **Low data promise** in the store listing and marketing.
+## 9. Revenue in the free phase
 
----
+Coins are earned through daily rewards, wins, the tutorial and invites, and can also be bought. They pay for entry to coin tables. Coins can never be exchanged for money or anything of cash value. That keeps the free app outside gaming law and within Google Play policy.
 
-## 9. Monetisation (free phase)
+Rewarded ads give coins or a second chance. We will not show ads during a game.
 
-- **Coins:** earned (daily reward, wins, tutorial, invites) and optionally bought. Used as entry fees for coin tables. **Coins can never be converted to money or anything of cash value.** This keeps the free app outside gaming law and inside Google Play policy.
-- **Rewarded ads** (AdMob): watch an ad for coins or a second chance. No interstitials during games.
-- **Cosmetics:** dice, piece and board skins, bought with coins or real money.
-- **Real-money purchases in the Play Store app must go through Google Play Billing** (policy). MoMo top-ups for coins inside the Play build are not allowed; MoMo comes with the money phase.
-- **Sponsored prize tournaments** (a brand gives airtime or merchandise): check with NLGRB first, as prize competitions may need a permit.
+Dice, piece and board designs can be bought with coins or money. Any purchase inside the Play Store app must go through Google Play Billing, so mobile money top ups wait for the paid phase.
 
----
+If a sponsor offers prizes for a tournament, check with the gaming board first, because prize competitions may need a permit.
 
-## 10. Real-money phase: legal, payments, risk
+## 10. The paid phase
 
-This section is research to plan against, not legal advice. A Ugandan gaming lawyer must confirm every point before any money flows.
+This is research for planning. A Ugandan gaming lawyer must confirm it before any money moves.
 
-### 10.1 Is staked Ludo "gaming" in Uganda?
+### Staked Ludo is almost certainly gaming
 
-Very likely yes. Uganda's Lotteries and Gaming Act 2016 regulates gaming on games with an element of chance, and dice are chance even when skill matters. Plan on the assumption that staked Arena games need an NLGRB licence. First action: a written legal opinion on classification.
+The Lotteries and Gaming Act 2016 covers games that involve chance, and dice are chance even when skill matters. We should assume a licence from the National Lotteries and Gaming Regulatory Board is needed. The first step is a written legal opinion.
 
-### 10.2 The licence problem
+### New licences are frozen
 
-- **New licences have been frozen since 2019.** The government directed NLGRB not to grant new gambling, betting or gaming licences. The practical routes today are:
-  1. **Partner with an existing licensee** (Arena supplies the game; the licensed operator runs the money side). Fastest.
-  2. **Acquire** a company that already holds a licence.
-  3. **Wait** for the freeze to lift, and be application-ready.
-- If a licence becomes possible: fees for Ugandan/East African applicants about UGX 25m application + UGX 25m licence (foreign applicants double), minimum paid-up capital around UGX 250m for a general betting licence, annual renewal (calendar year).
-- **Minimum age is 25**, not 18. Money games must verify age.
-- Licensees need NITA-U certification of their systems, NLGRB approval of adverts, responsible gaming measures (self-exclusion, deposit and time limits), and AML reporting.
+Since 2019 the government has told the board not to issue new gaming licences. That leaves three routes:
 
-### 10.3 Tax (from 1 July 2026)
+1. Partner with a company that already holds a licence. We provide the game and they run the money side. This is the fastest route.
+2. Buy a company that holds a licence.
+3. Be ready to apply when the freeze ends.
 
-- **30% tax** on gross gaming revenue (our rake).
-- **15% withholding tax** on players' net winnings, deducted by the operator before payout.
+For reference, fees for Ugandan applicants are about UGX 25 million to apply and UGX 25 million for the licence, with foreign applicants paying double. The minimum paid up capital for a general betting licence is around UGX 250 million, and licences are renewed every calendar year.
 
-Worked example, 1v1 at UGX 5,000 each, 12% rake:
+The legal gambling age in Uganda is 25. Licensed operators also need NITA-U certification of their systems, approval of every advert, responsible gaming controls and anti money laundering reporting.
+
+### Tax from July 2026
+
+Operators pay 30 percent of their gross gaming revenue, which for us is our share of each pot. A further 15 percent is withheld from players' net winnings before payout.
+
+A 1v1 game at UGX 5,000 each with a 12 percent share works out like this:
 
 | Item | UGX |
 |---|---|
 | Pot | 10,000 |
-| Rake (12%) | 1,200 |
+| Our share at 12 percent | 1,200 |
 | Paid to winner before tax | 8,800 |
-| Winner's net winnings (8,800 minus own 5,000 stake) | 3,800 |
-| 15% withholding on net winnings | 570 |
+| Winner's net gain | 3,800 |
+| 15 percent withheld from the net gain | 570 |
 | Winner receives | 8,230 |
-| Gaming tax, 30% of 1,200 | 360 |
-| Platform keeps | 840 |
+| 30 percent tax on our share | 360 |
+| We keep | 840 |
 
-Confirm the withholding base with a tax adviser. With 30% off the rake, pricing toward 15% rake at low stakes may be needed.
+A tax adviser should confirm how the withholding is calculated.
 
-### 10.4 Distribution
+### Distribution
 
-Google Play only allows real-money gambling apps in approved countries with a local licence and Google approval, and they must not use Play Billing. Plan for **two builds**: the free app on Play Store, and the money-enabled app distributed from our website as a direct APK (unless Google approves Uganda). The money build must ask for age 25+ and KYC before the wallet unlocks.
+Google Play only allows real money gambling apps in approved countries, with a local licence and Google's approval. We should plan for two builds: the free app on Play Store and the paid version downloaded from our own website. The paid version must confirm the player is 25 or older and verify their identity before the wallet opens.
 
-### 10.5 Payments
+### Payments
 
-- MTN MoMo API (collections and disbursements) and Airtel Money API, directly or through an aggregator (Flutterwave, Pesapal, Relworx, Yo! Payments and similar).
-- An aggregator is faster to integrate; direct APIs are cheaper at scale.
-- Wallet: double-entry ledger (already built for coins, section 6.6), daily reconciliation against provider statements, idempotent payment callbacks, manual review queue for large withdrawals.
+Use the MTN MoMo and Airtel Money APIs directly, or go through a payment company such as Flutterwave, Pesapal, Relworx or Yo! Payments. A payment company is quicker to set up and direct integration is cheaper at volume. The wallet uses the same double entry ledger as the coins, is reconciled daily against provider statements, and large withdrawals are checked by a person.
 
-### 10.6 Compliance building blocks
+### Compliance
 
-- KYC: national ID number and selfie, verified against NIRA through a provider.
-- Age gate 25+.
-- Responsible gaming: deposit limits, loss limits, session reminders, self-exclusion, cool-off.
-- AML: transaction monitoring, reporting to the Financial Intelligence Authority where required.
-- Data protection: register with the Personal Data Protection Office under the Data Protection and Privacy Act 2019 (applies from the free phase, since we hold phone numbers).
-- An ISO 27001-aligned information security baseline will make NITA-U certification and partner due diligence much easier.
+1. Identity checks with national ID and a selfie, verified against NIRA
+2. Age check for 25 and over
+3. Deposit and loss limits, session reminders, self exclusion and cool off periods
+4. Transaction monitoring and reporting to the Financial Intelligence Authority where required
+5. Registration with the Personal Data Protection Office under the Data Protection and Privacy Act 2019. This applies from the free phase, since we store phone numbers
+6. An information security baseline in line with ISO 27001, which will make NITA-U certification and partner checks easier
 
-### 10.7 Money game design
+### Paid game design
 
-- Launch money play with **1v1 only**. 4-player and 2v2 invite collusion (two friends ganging up on a stranger).
-- No bots, ever, in money games, and no bot fallback in money queues.
-- Friends cannot be matched against each other in money queues (reduces chip dumping).
-- Stakes: tables at UGX 1,000, 2,000, 5,000, 10,000, 20,000, 50,000. Rake 10 to 15%, possibly tiered (higher percent at low stakes).
+Paid play starts with 1v1 only, because four player and team games make it easy for friends to gang up on a stranger. There are no bots at paid tables. Friends are not matched against each other in paid queues. Tables are UGX 1,000, 2,000, 5,000, 10,000, 20,000 and 50,000, with our share between 10 and 15 percent.
 
-### 10.8 Kenya and Rwanda
+Kenya and Rwanda each have their own regulator and taxes, so each would be a separate licence project.
 
-Each country has its own regulator and tax regime. Treat expansion as a new licence project per country.
+## 11. Fairness and cheating
 
----
+1. The server rolls the dice and decides every move. The app only displays results.
+2. At the start of each match the server publishes a fingerprint of a secret seed. Every roll comes from that seed, a seed from the player's phone and the roll number. At the end the seed is revealed, so anyone can check every roll with the Verify button on the results screen.
+3. Every move is logged to settle disputes.
+4. We watch for collusion: shared devices, networks or mobile money numbers, the same players meeting repeatedly, and players who avoid obvious captures.
+5. Login codes, room creation and matchmaking have rate limits.
+6. Bots are always labelled as bots.
 
-## 11. Trust, fairness and anti-cheat
+## 12. Targets for the first release
 
-- **Server-authoritative:** the client never rolls dice and never decides a move's result.
-- **Provably fair dice:** at match start the server publishes a hash of a secret seed; each roll is derived from the seed, a client seed and the roll number; at match end the seed is revealed so anyone can verify every roll. A "Verify this game" button on the result screen.
-- **Full move log** per match for dispute resolution.
-- **Anti-collusion signals:** same device, same IP, same MoMo number, repeated pairings, soft play (avoiding obvious captures).
-- **Rate limits** on OTP, room creation and matchmaking.
-- **Bots are labelled** as bots in free games. Never disguise a bot as a human.
-
----
-
-## 12. Metrics
-
-| Metric | MVP target |
+| Measure | Target |
 |---|---|
-| Crash-free sessions | 99%+ |
-| Game completion rate (started games that finish) | 80%+ |
-| Reconnect success after drop | 90%+ |
-| D1 / D7 retention | 35% / 15% |
-| Games per daily active user | 3+ |
-| Invite link to install conversion | Track from day 1 |
-| Data per game | under 200 KB |
-| Tutorial completion | 70%+ |
+| Crash free sessions | 99 percent |
+| Games that reach the end | 80 percent |
+| Successful reconnects | 90 percent |
+| Players back the next day | 35 percent |
+| Players back after a week | 15 percent |
+| Games per daily player | 3 |
+| Tutorial completion | 70 percent |
+| Data per game | Under 200 KB |
 
----
+## 13. How we work
 
-## 13. Engineering workflow
+We use trunk based development. Everyone commits to main in small steps, and main must always build and pass tests.
 
-- **Branches:** `main` is always releasable. Work on `feat/...`, `fix/...`, merge by PR with at least one review (when both devs are active) or a self-review checklist.
-- **CI (GitHub Actions):** `dart format --set-exit-if-changed`, `flutter analyze`, `flutter test`, `dart test` for the engine and server.
-- **Definition of done:** tests written, works on a low-end Android device, strings localised, README updated if behaviour changed.
-- **Rules changes:** update section 2 first, then code, then tests. Never the other way round.
-- **Secrets:** never in the repo. `.env` files locally, secret manager in CI and production.
-- **Decisions:** record significant choices as short ADRs in `docs/adr/`.
+1. Unfinished features stay hidden behind a setting until they are ready.
+2. CI runs formatting, flutter analyze, flutter test and the engine and server tests on every push.
+3. A task is done when it has tests, works on a low end Android phone, has its text translated, and the tracker in section 4 is updated.
+4. Rule changes go into section 2 first, then code, then tests.
+5. Passwords and keys never go into the repo.
+6. Important technical decisions get a short note in docs/adr.
+7. Releases are tagged on main, for example v0.1.0.
 
-### Run the app today
+Commit messages start with the task ID when there is one, for example `M1.2 add legal move generation for two dice`.
+
+### Running the app
 
 ```
 flutter pub get
-flutter run            # pick an Android device or emulator
+flutter run
 flutter test
 flutter build apk
 ```
 
----
+## 14. Other decisions still needed
 
-## 14. Open questions
+| No. | Decision |
+|---|---|
+| D1 | Final brand name and domain, which sets the permanent Android package id |
+| D2 | Personal or organisation Google Play account |
+| D3 | Who writes and checks the Luganda text |
+| D4 | Who leads the legal opinion and talks with licensed partners, and by when |
 
-Decisions needed from the product owner, roughly in order of urgency. All must be closed by the end of M0.
-
-1. Final brand name and domain (drives the Android package id, which is permanent).
-2. Three double 6s in a row: forfeit or not?
-3. Must both dice be used when possible? Which die is used if only one can be?
-4. Combined moves: must each intermediate step be legal?
-5. Own pieces and own blocks: can they only join exactly, or pass after landing?
-6. Block moving on a double: moves one die's value or the sum?
-7. Counting sixes for 3- and 4-piece block captures.
-8. Free-for-all: play on for 2nd and 3rd, or end at the first finisher?
-9. 2v2: win condition, joint blocks, rolling for partner after finishing.
-10. Can the second die move the piece just released?
-11. Who writes and reviews Luganda strings?
-12. Play developer account: personal or organisation (affects the 14-day test rule)?
-13. Who owns the legal opinion and licensed-partner conversations for the money phase, and by when?
-
----
-
-## 15. Glossary
+## 15. Terms
 
 | Term | Meaning |
 |---|---|
-| Block | 2+ pieces of one colour on one square; acts as a wall |
-| Release | Moving a piece from home onto its start square with a 6 |
-| Home column | The 5 coloured squares leading to the finish |
-| Finish | The centre; a piece there is done |
-| Rake | The platform's percentage of each money pot |
-| GGR | Gross gaming revenue: stakes minus winnings paid, i.e. our rake |
-| Authoritative server | The server decides dice and moves; clients only display |
-| Provably fair | Dice outcomes players can verify after the game |
-| NLGRB | National Lotteries and Gaming Regulatory Board, Uganda's gaming regulator |
-| KYC | Know your customer: identity and age verification |
-
----
+| Block | Two or more pieces of one colour on one square |
+| Release | Moving a piece out of home with a 6 |
+| Home column | The five coloured squares before the centre |
+| Our share | The percentage of each paid pot we keep |
+| Gross gaming revenue | Stakes minus winnings paid out, which for us is our share |
+| KYC | Checking a player's identity and age |
+| NLGRB | National Lotteries and Gaming Regulatory Board |
 
 ## 16. Sources
 
-- [Uganda Gambling Laws and Market Outlook 2026 (Altenar)](https://altenar.com/blog/gambling-laws-and-regulations-in-uganda-licensing-compliance-and-market-reality/)
-- [Uganda's Gambling Sector in 2025: Legal and Regulatory Guide (PML Daily)](https://pmldaily.com/sports/2025/10/ugandas-gambling-sector-in-2025-a-definitive-legal-and-regulatory-guide-for-operators.html)
-- [Uganda approves harmonised 30% tax rate, 15% on winnings (iGaming Business)](https://igamingbusiness.com/finance/tax/uganda-approves-harmonised-tax-betting-gaming/)
-- [Strict new rules as Uganda gambling board begins 2026 licence renewals (iGamingToday)](https://www.igamingtoday.com/strict-new-rules-announced-as-uganda-gambling-board-begins-2026-license-renewals/)
-- [NLGRB licensing process](https://lgrb.go.ug/licensing-process/)
-- [Lotteries and Gaming Act, 2016 (ULII)](https://ulii.org/akn/ug/act/2016/7/eng@2023-12-31)
-- [Google Play: Real-Money Gambling, Games, and Contests policy](https://support.google.com/googleplay/android-developer/answer/9877032)
-- [MTN MoMo developer API](https://momo.mtn.com/api/)
-- [Uganda payment gateways: mobile money and cards (Boldrails)](https://boldrails.com/payments/uganda)
-- [Real-money Ludo in Nigeria (Carry1st)](https://www.carry1st.com/blog/can-you-earn-money-playing-ludo-online-in-nigeria-in-2025) and [MPL Nigeria](https://www.mpl.ng/): comparable real-money Ludo models
-- [Colyseus](https://colyseus.io/) and Nakama: backends considered in section 6.3
+Uganda gambling laws and market outlook 2026, Altenar
+https://altenar.com/blog/gambling-laws-and-regulations-in-uganda-licensing-compliance-and-market-reality/
+
+Uganda's gambling sector in 2025, PML Daily
+https://pmldaily.com/sports/2025/10/ugandas-gambling-sector-in-2025-a-definitive-legal-and-regulatory-guide-for-operators.html
+
+Uganda approves harmonised 30 percent tax on betting and gaming, iGaming Business
+https://igamingbusiness.com/finance/tax/uganda-approves-harmonised-tax-betting-gaming/
+
+Uganda gaming board 2026 licence renewals, iGamingToday
+https://www.igamingtoday.com/strict-new-rules-announced-as-uganda-gambling-board-begins-2026-license-renewals/
+
+NLGRB licensing process
+https://lgrb.go.ug/licensing-process/
+
+Lotteries and Gaming Act 2016
+https://ulii.org/akn/ug/act/2016/7/eng@2023-12-31
+
+Google Play real money gambling policy
+https://support.google.com/googleplay/android-developer/answer/9877032
+
+MTN MoMo developer API
+https://momo.mtn.com/api/
+
+Uganda payment options, Boldrails
+https://boldrails.com/payments/uganda
+
+Real money Ludo in Nigeria, Carry1st and MPL
+https://www.carry1st.com/blog/can-you-earn-money-playing-ludo-online-in-nigeria-in-2025
+https://www.mpl.ng/
