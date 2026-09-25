@@ -2,7 +2,7 @@
 
 Arena is a mobile app for playing Ugandan Ludo online with friends, strangers and bots. We are building for Android first, in Flutter.
 
-The game is free at launch. Real money staking comes later, and only once we have a legal route to run it.
+Paid play is part of the first release. Players deposit with MTN MoMo or Airtel Money and stake on games. Licensing is handled by Allan and is outside the scope of this document.
 
 This file is the main reference for the team. The milestone tracker in section 4 is updated with every commit.
 
@@ -10,7 +10,7 @@ This file is the main reference for the team. The milestone tracker in section 4
 
 ### Who it is for
 
-Our main players are young adults aged 18 to 35 in Kampala and other towns. Most use Android phones and watch their data. Once staking arrives, we also expect players who already use betting apps and want a game where skill matters.
+Our main players are young adults aged 18 to 35 in Kampala and other towns. Most use Android phones and watch their data. We also expect players who already use betting apps and want a game where skill matters.
 
 ### How people play
 
@@ -24,16 +24,16 @@ Game modes are 1v1, four player free for all, and 2v2 teams.
 
 ### How we make money
 
-In the free phase players earn and spend coins that can never be cashed out. Revenue comes from rewarded ads and cosmetic items.
+Players deposit into an Arena wallet with MTN MoMo or Airtel Money and stake between UGX 1,000 and UGX 50,000 on a game. We keep 10 to 15 percent of each pot. Stakes may be held as coins bought with deposits. The wallet works the same way in either case.
 
-In the paid phase players stake between UGX 1,000 and UGX 50,000 through MTN MoMo or Airtel Money, and we keep 10 to 15 percent of each pot. Bots never sit at a paid table.
+Free coin tables, rewarded ads and cosmetic items run alongside paid play. Bots never sit at a paid table.
 
 ### Why people will choose Arena
 
 1. It plays by our rules. Ludo King and Ludo Club use the international single die rules. Nobody serves the Ugandan game properly.
 2. It suits local phones and networks: small download, low data use, and games that survive a dropped connection.
 3. It feels local, with Luganda in the app and invites that go straight to WhatsApp.
-4. The dice can be checked. Every roll can be verified after the game, so players can trust the results before any money is involved.
+4. The dice can be checked. Every roll can be verified after the game, so players can trust the results when money is at stake.
 
 ## 2. Game rules
 
@@ -149,6 +149,8 @@ We keep the project structure, the dice images and the folder layout. The email 
 
 The public Android release is due by 31 December 2026, with mid January 2027 as the fallback. The team is two developers, usually working one at a time.
 
+Paid play adds roughly three weeks of work to the plan. If dates slip, 2v2 moves out first, then withdrawals.
+
 Google Play requires new personal developer accounts to run a closed test with at least 12 testers for 14 days before going live. So closed testing must start by 14 December, unless we register as an organisation.
 
 ### How to keep this tracker updated
@@ -166,8 +168,8 @@ With every commit to main:
 |---|---|---|
 | M0 Foundations | 28 Sep to 9 Oct 2026 | In progress |
 | M1 Rules engine and offline play | 12 Oct to 6 Nov 2026 | Not started |
-| M2 Online private rooms | 9 Nov to 27 Nov 2026 | Not started |
-| M3 Matchmaking and polish | 30 Nov to 11 Dec 2026 | Not started |
+| M2 Online rooms and wallet | 9 Nov to 27 Nov 2026 | Not started |
+| M3 Matchmaking, paid tables and polish | 30 Nov to 11 Dec 2026 | Not started |
 | M4 Closed beta | 14 Dec to 28 Dec 2026 | Not started |
 | Release | 29 Dec to 31 Dec 2026 | Not started |
 
@@ -183,9 +185,10 @@ Done when the rules are signed off, the known bugs are fixed, the repo is restru
 | M0.4 | Fix bugs B1 to B8 | Not started | |
 | M0.5 | Choose the final brand name and Android package id | Not started | |
 | M0.6 | Restructure the repo into apps/mobile, packages/ludo_engine and server | Not started | |
-| M0.7 | Set up GitHub Actions for format, analyze and tests | Not started | |
+| M0.7 | Set up GitHub Actions for CI, Android releases and server deploys | In progress | |
 | M0.8 | Register the Google Play developer account | Not started | |
-| M0.9 | Wireframe the eight core screens in Figma | Not started | |
+| M0.9 | Wireframe the core screens in Figma, including the wallet | Not started | |
+| M0.10 | Choose the payment provider and open sandbox accounts | Not started | |
 
 ### M1 Rules engine and offline play
 
@@ -205,9 +208,9 @@ Done when a full game can be played offline against bots, with every rule in sec
 | M1.10 | Easy and normal bots | Not started | |
 | M1.11 | Pass and play on one phone for internal testing | Not started | |
 
-### M2 Online private rooms
+### M2 Online rooms and wallet
 
-Done when two to four people can finish a game online from a shared WhatsApp link.
+Done when two to four people can finish a game online from a shared WhatsApp link, and a test deposit shows up in the wallet.
 
 | ID | Task | Status | Date done |
 |---|---|---|---|
@@ -219,10 +222,13 @@ Done when two to four people can finish a game online from a shared WhatsApp lin
 | M2.6 | Reconnect within 60 seconds | Not started | |
 | M2.7 | Save match history and move log to Postgres | Not started | |
 | M2.8 | Staging server running | Not started | |
+| M2.9 | Double entry ledger for wallet balances and coins | Not started | |
+| M2.10 | Deposits through MTN MoMo and Airtel Money in the sandbox | Not started | |
+| M2.11 | Payment callbacks that are safe to receive twice | Not started | |
 
-### M3 Matchmaking and polish
+### M3 Matchmaking, paid tables and polish
 
-Done when strangers can find a game within 20 seconds and the app is ready for testers.
+Done when strangers can find a game within 20 seconds, a paid 1v1 game settles correctly, and the app is ready for testers.
 
 | ID | Task | Status | Date done |
 |---|---|---|---|
@@ -234,6 +240,11 @@ Done when strangers can find a game within 20 seconds and the app is ready for t
 | M3.6 | Sound and vibration | Not started | |
 | M3.7 | Interactive tutorial | Not started | |
 | M3.8 | 2v2 teams, which moves to January if time runs short | Not started | |
+| M3.9 | Paid tables: stake taken on join, pot held until the game ends, then winner paid and our share taken | Not started | |
+| M3.10 | Wallet screen with balance, deposit and history | Not started | |
+| M3.11 | Deposit limits, minimum age check and self exclusion setting | Not started | |
+| M3.12 | Live deposits with real providers, behind a server setting | Not started | |
+| M3.13 | Withdrawals to mobile money, which moves to January if time runs short | Not started | |
 
 ### M4 Closed beta and release
 
@@ -243,6 +254,8 @@ Done when strangers can find a game within 20 seconds and the app is ready for t
 | M4.2 | Crash free sessions at 99 percent or higher | Not started | |
 | M4.3 | Store listing, privacy policy and data safety form | Not started | |
 | M4.4 | Production release in Uganda | Not started | |
+| M4.5 | Test paid play end to end with small real amounts | Not started | |
+| M4.6 | Daily reconciliation of the ledger against provider statements | Not started | |
 
 ### After release
 
@@ -250,8 +263,7 @@ Done when strangers can find a game within 20 seconds and the app is ready for t
 |---|---|---|
 | 1.1 | January 2027 | 2v2 if it slipped, friends list, rematch, quick chat, shareable results |
 | 1.2 | February and March 2027 | Coin tournaments, leaderboards, seasons, cosmetics shop, iOS |
-| Paid play preparation | From January 2027 | Legal opinion, licence route, KYC, wallet, payment partner |
-| Paid play | Q3 2027 at the earliest, and only with a licence route | 1v1 paid tables first |
+| Paid play expansion | From January 2027 | Withdrawals if they slipped, paid four player tables, paid tournaments, identity checks |
 
 ### Progress log
 
@@ -262,6 +274,8 @@ Done when strangers can find a game within 20 seconds and the app is ready for t
 | Before 25 Sep 2026 | M0.2 | Board layout and dice widget |
 | 25 Sep 2026 | M0.1 | Project README added |
 | 25 Sep 2026 | M0.1 | README rewritten in plain language, milestone tracker added |
+| 25 Sep 2026 | M0.1 | Paid play moved into the first release, wallet and paid table tasks added |
+| 25 Sep 2026 | M0.7 | CI and CD workflows written, Android release signing added to Gradle |
 
 ## 5. Scope of the first release
 
@@ -274,11 +288,13 @@ Done when strangers can find a game within 20 seconds and the app is ready for t
 | Quick match for 1v1 and four players | | Custom house rules |
 | Server dice, timer, reconnect | | More languages, Kenya and Rwanda |
 | Tutorial | | |
-| Coins that cannot be cashed out | | |
+| Wallet with MoMo and Airtel deposits | Withdrawals | Paid four player and team tables |
+| Paid 1v1 tables | | |
+| Free coin tables | | |
 | English and Luganda | | |
 | Crash reporting and analytics | | |
 
-We are not building free text chat, paid play or desktop and web builds for the first release.
+We are not building free text chat or desktop and web builds for the first release.
 
 ## 6. Technical design
 
@@ -298,10 +314,11 @@ This is the main reason the backend is written in Dart.
 | App state and routing | Riverpod and go_router | Standard, and handles invite links |
 | Board | CustomPainter with simple animations | Light enough for low end phones |
 | Game server | Dart with shelf and web sockets | Shares the rules engine |
-| Database | PostgreSQL | Users, matches, move logs, coin ledger |
+| Database | PostgreSQL | Users, matches, move logs, wallet ledger |
 | Cache and queues | Redis | Live rooms, matchmaking, reconnects |
 | Login | Phone OTP through Firebase Auth or Africa's Talking | Phone numbers are how people here identify, and they match mobile money later |
 | Notifications, crashes, analytics | Firebase | Free and well supported |
+| Payments | MTN MoMo and Airtel Money APIs, directly or through Flutterwave, Pesapal, Relworx or Yo! Payments | A payment company is quicker to set up, direct integration is cheaper at volume |
 | Hosting | One virtual machine plus managed Postgres | A turn based game needs little computing power |
 
 We looked at Firebase as the whole backend, but the phone would decide the dice, which cannot be trusted with money. Nakama and Colyseus are both good game servers, but each would mean writing the rules a second time in another language.
@@ -312,13 +329,13 @@ Messages are JSON over a secure web socket. Each one carries a sequence number s
 
 | Direction | Message | Contents |
 |---|---|---|
-| App to server | join_room | Room code and login token |
+| App to server | join_room | Room code, login token and stake for paid tables |
 | Server to app | room_state | Seats, rules, board, whose turn, time left |
 | App to server | roll | Nothing |
 | Server to app | dice | Two values, proof and legal moves |
 | App to server | move | The pieces and dice chosen |
 | Server to app | state_patch | Moves, captures, next turn |
-| Server to app | game_over | Final ranking and coins won or lost |
+| Server to app | game_over | Final ranking and wallet change |
 
 Each turn should use under 2 KB, keeping a full game under 200 KB.
 
@@ -332,7 +349,8 @@ Each turn should use under 2 KB, keeping a full game under 200 KB.
 | matches | Mode, times, dice seed and its hash, stake, our share |
 | match_players | Player, colour, seat, whether a bot, finishing place |
 | moves | Every move in order, for replays and disputes |
-| accounts and ledger_entries | Double entry ledger for coins, reused later for money |
+| accounts and ledger_entries | Double entry ledger for wallet balances, stakes, pots, our share and coins |
+| payments | Every deposit and withdrawal, with provider reference and status |
 
 ### Repository layout
 
@@ -388,11 +406,12 @@ Sign up with phone number, code, name and avatar in under a minute. Then a three
 1. Login with phone number
 2. Profile setup
 3. Home: play now, play with friends, practice, coins, daily reward
-4. Choose mode and coin entry
+4. Choose mode and table: free, coins or paid stake
 5. Private room lobby with WhatsApp share
 6. Searching for players
 7. Game
 8. Results with rematch and share
+9. Wallet: balance, deposit, history and limits
 
 ## 8. Growth
 
@@ -404,41 +423,27 @@ Sign up with phone number, code, name and avatar in under a minute. Then a three
 6. Keep players coming back with daily rewards, weekly tournaments, streaks and rematches.
 7. Mention low data use in the store listing.
 
-## 9. Revenue in the free phase
+## 9. Other revenue
 
-Coins are earned through daily rewards, wins, the tutorial and invites, and can also be bought. They pay for entry to coin tables. Coins can never be exchanged for money or anything of cash value. That keeps the free app outside gaming law and within Google Play policy.
+Coins are earned through daily rewards, wins, the tutorial and invites. They pay for entry to free coin tables.
 
 Rewarded ads give coins or a second chance. We will not show ads during a game.
 
-Dice, piece and board designs can be bought with coins or money. Any purchase inside the Play Store app must go through Google Play Billing, so mobile money top ups wait for the paid phase.
+Dice, piece and board designs can be bought with coins or from the wallet.
 
-If a sponsor offers prizes for a tournament, check with the gaming board first, because prize competitions may need a permit.
+## 10. Wallet and paid play
 
-## 10. The paid phase
+### How money moves
 
-This is research for planning. A Ugandan gaming lawyer must confirm it before any money moves.
+1. A player deposits with MTN MoMo or Airtel Money. The provider confirms the payment through a callback, and only then is the wallet credited.
+2. Joining a paid table moves the stake from the player's wallet into a pot account for that match.
+3. When the game ends, the server moves our share to our revenue account and the rest to the winner's wallet.
+4. If a game is abandoned before it starts, every stake goes back to its owner.
+5. Every movement is a pair of ledger entries, so balances can always be rebuilt from the ledger.
 
-### Staked Ludo is almost certainly gaming
+### Payout calculation
 
-The Lotteries and Gaming Act 2016 covers games that involve chance, and dice are chance even when skill matters. We should assume a licence from the National Lotteries and Gaming Regulatory Board is needed. The first step is a written legal opinion.
-
-### New licences are frozen
-
-Since 2019 the government has told the board not to issue new gaming licences. That leaves three routes:
-
-1. Partner with a company that already holds a licence. We provide the game and they run the money side. This is the fastest route.
-2. Buy a company that holds a licence.
-3. Be ready to apply when the freeze ends.
-
-For reference, fees for Ugandan applicants are about UGX 25 million to apply and UGX 25 million for the licence, with foreign applicants paying double. The minimum paid up capital for a general betting licence is around UGX 250 million, and licences are renewed every calendar year.
-
-The legal gambling age in Uganda is 25. Licensed operators also need NITA-U certification of their systems, approval of every advert, responsible gaming controls and anti money laundering reporting.
-
-### Tax from July 2026
-
-Operators pay 30 percent of their gross gaming revenue, which for us is our share of each pot. A further 15 percent is withheld from players' net winnings before payout.
-
-A 1v1 game at UGX 5,000 each with a 12 percent share works out like this:
+The tax rates are settings, not fixed in code. Under current Ugandan rules our share is taxed at 30 percent and 15 percent is withheld from the winner's net gain. A 1v1 game at UGX 5,000 each with a 12 percent share settles like this:
 
 | Item | UGX |
 |---|---|
@@ -451,37 +456,28 @@ A 1v1 game at UGX 5,000 each with a 12 percent share works out like this:
 | 30 percent tax on our share | 360 |
 | We keep | 840 |
 
-A tax adviser should confirm how the withholding is calculated.
+### Table rules
 
-### Distribution
+Paid play starts with 1v1 only, because four player and team games make it easy for friends to gang up on a stranger. There are no bots at paid tables. Friends are not matched against each other in paid queues. Tables are UGX 1,000, 2,000, 5,000, 10,000, 20,000 and 50,000, and our share is a setting between 10 and 15 percent.
 
-Google Play only allows real money gambling apps in approved countries, with a local licence and Google's approval. We should plan for two builds: the free app on Play Store and the paid version downloaded from our own website. The paid version must confirm the player is 25 or older and verify their identity before the wallet opens.
+### Player protection
 
-### Payments
+The minimum age for paid tables is a setting, currently 25 to match Ugandan law. Players can set deposit limits and exclude themselves for a period. The wallet screen shows session time and net result for the day.
 
-Use the MTN MoMo and Airtel Money APIs directly, or go through a payment company such as Flutterwave, Pesapal, Relworx or Yo! Payments. A payment company is quicker to set up and direct integration is cheaper at volume. The wallet uses the same double entry ledger as the coins, is reconciled daily against provider statements, and large withdrawals are checked by a person.
+### Builds
 
-### Compliance
+Google Play does not allow mobile money deposits for stakes in a Play Store app without Google's approval, and purchases of digital items there must use Google Play Billing. So the app has two build flavours from one code base: a Play Store build with free and coin play only, and a full build with the wallet, downloaded from our website. Paid features are switched on by the server, not by the app version.
 
-1. Identity checks with national ID and a selfie, verified against NIRA
-2. Age check for 25 and over
-3. Deposit and loss limits, session reminders, self exclusion and cool off periods
-4. Transaction monitoring and reporting to the Financial Intelligence Authority where required
-5. Registration with the Personal Data Protection Office under the Data Protection and Privacy Act 2019. This applies from the free phase, since we store phone numbers
-6. An information security baseline in line with ISO 27001, which will make NITA-U certification and partner checks easier
+### Reconciliation
 
-### Paid game design
-
-Paid play starts with 1v1 only, because four player and team games make it easy for friends to gang up on a stranger. There are no bots at paid tables. Friends are not matched against each other in paid queues. Tables are UGX 1,000, 2,000, 5,000, 10,000, 20,000 and 50,000, with our share between 10 and 15 percent.
-
-Kenya and Rwanda each have their own regulator and taxes, so each would be a separate licence project.
+Every day the ledger is checked against the provider statements. Any difference is flagged for a person to review. Large withdrawals also wait for a person to approve them.
 
 ## 11. Fairness and cheating
 
 1. The server rolls the dice and decides every move. The app only displays results.
 2. At the start of each match the server publishes a fingerprint of a secret seed. Every roll comes from that seed, a seed from the player's phone and the roll number. At the end the seed is revealed, so anyone can check every roll with the Verify button on the results screen.
 3. Every move is logged to settle disputes.
-4. We watch for collusion: shared devices, networks or mobile money numbers, the same players meeting repeatedly, and players who avoid obvious captures.
+4. We watch for collusion at paid tables: shared devices, networks or mobile money numbers, the same players meeting repeatedly, and players who avoid obvious captures.
 5. Login codes, room creation and matchmaking have rate limits.
 6. Bots are always labelled as bots.
 
@@ -512,6 +508,40 @@ We use trunk based development. Everyone commits to main in small steps, and mai
 
 Commit messages start with the task ID when there is one, for example `M1.2 add legal move generation for two dice`.
 
+### CI and CD
+
+Three GitHub Actions workflows live in .github/workflows. Each one checks which projects exist, so they work both before and after the repo is split into apps/mobile, packages/ludo_engine and server.
+
+| Workflow | Runs on | What it does |
+|---|---|---|
+| ci.yml | Every push to main and every pull request | Formats, analyzes and tests the app, the engine and the server. The engine fails below 95 percent coverage. Server tests run against real Postgres and Redis. Every push to main also builds a release APK and keeps it for 14 days in the run's artifacts, for testing on real phones |
+| release-android.yml | Tags starting with v, for example v0.1.0 | Builds the signed APK and app bundle, attaches the APK to a GitHub release for the website download, and uploads the bundle to Play internal testing once the Play secrets are set |
+| deploy-server.yml | After CI passes on main, and on tags | Builds the server Docker image, pushes it to GitHub's container registry and deploys it over SSH. Main goes to staging, tags go to production. It skips quietly until server/Dockerfile exists |
+
+Dependabot checks for package and action updates weekly.
+
+To release, make sure CI is green on main, then run `git tag v0.1.0` and `git push origin v0.1.0`.
+
+### CI and CD settings
+
+Set these in GitHub under Settings, then Secrets and variables, then Actions. Create two environments, staging and production, under Settings, then Environments, and turn on required reviewers for production so every production deploy waits for approval.
+
+| Name | Kind | Scope | Where to get it |
+|---|---|---|---|
+| ANDROID_KEYSTORE_BASE64 | Secret | production | Create an upload key with keytool, then base64 encode the .jks file |
+| ANDROID_KEYSTORE_PASSWORD | Secret | production | The store password chosen when creating the key |
+| ANDROID_KEY_ALIAS | Secret | production | The alias chosen when creating the key |
+| ANDROID_KEY_PASSWORD | Secret | production | The key password chosen when creating the key |
+| PLAY_SERVICE_ACCOUNT_JSON | Secret | production | A Google Cloud service account given release access in Play Console, under API access |
+| ANDROID_PACKAGE_ID | Variable | repository | The final package id, once decided in M0.5 |
+| DEPLOY_HOST | Secret | staging and production | IP or host name of each server |
+| DEPLOY_USER | Secret | staging and production | The SSH user on that server |
+| DEPLOY_SSH_KEY | Secret | staging and production | A private key whose public half is in that user's authorized_keys |
+
+Server keys for MoMo, Airtel and Firebase do not go into GitHub. They live in /opt/arena/.env on each server, next to the compose file the deploy uses.
+
+Keep the upload keystore backed up outside GitHub. Losing it means the app can no longer be updated on the Play Store.
+
 ### Running the app
 
 ```
@@ -528,7 +558,7 @@ flutter build apk
 | D1 | Final brand name and domain, which sets the permanent Android package id |
 | D2 | Personal or organisation Google Play account |
 | D3 | Who writes and checks the Luganda text |
-| D4 | Who leads the legal opinion and talks with licensed partners, and by when |
+| D4 | Payment provider: direct MTN and Airtel APIs or a payment company |
 
 ## 15. Terms
 
@@ -538,29 +568,13 @@ flutter build apk
 | Release | Moving a piece out of home with a 6 |
 | Home column | The five coloured squares before the centre |
 | Our share | The percentage of each paid pot we keep |
+| Pot | The stakes held for a match until it ends |
 | Gross gaming revenue | Stakes minus winnings paid out, which for us is our share |
-| KYC | Checking a player's identity and age |
-| NLGRB | National Lotteries and Gaming Regulatory Board |
 
 ## 16. Sources
 
-Uganda gambling laws and market outlook 2026, Altenar
-https://altenar.com/blog/gambling-laws-and-regulations-in-uganda-licensing-compliance-and-market-reality/
-
-Uganda's gambling sector in 2025, PML Daily
-https://pmldaily.com/sports/2025/10/ugandas-gambling-sector-in-2025-a-definitive-legal-and-regulatory-guide-for-operators.html
-
 Uganda approves harmonised 30 percent tax on betting and gaming, iGaming Business
 https://igamingbusiness.com/finance/tax/uganda-approves-harmonised-tax-betting-gaming/
-
-Uganda gaming board 2026 licence renewals, iGamingToday
-https://www.igamingtoday.com/strict-new-rules-announced-as-uganda-gambling-board-begins-2026-license-renewals/
-
-NLGRB licensing process
-https://lgrb.go.ug/licensing-process/
-
-Lotteries and Gaming Act 2016
-https://ulii.org/akn/ug/act/2016/7/eng@2023-12-31
 
 Google Play real money gambling policy
 https://support.google.com/googleplay/android-developer/answer/9877032
