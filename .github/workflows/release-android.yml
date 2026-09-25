@@ -22,7 +22,7 @@ jobs:
       - name: Find app folder
         run: |
           if [ -f apps/mobile/pubspec.yaml ]; then echo "APP_DIR=apps/mobile" >> "$GITHUB_ENV"; else echo "APP_DIR=." >> "$GITHUB_ENV"; fi
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
