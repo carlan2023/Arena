@@ -202,7 +202,7 @@ Done when a full game can be played offline against bots, with every rule in sec
 | M1.4 | Exact finish and win detection | In progress | |
 | M1.5 | Rule settings for R1 to R8 | In progress | |
 | M1.6 | Unit tests covering every test case in section 2, with at least 95 percent coverage | In progress | |
-| M1.7 | New board drawn with CustomPainter | Not started | |
+| M1.7 | New board drawn with CustomPainter | Done | 25 Sep 2026 |
 | M1.8 | Pieces, move highlights and animations | Not started | |
 | M1.9 | Two dice tray and move selection | Not started | |
 | M1.10 | Easy and normal bots | In progress | |
@@ -279,6 +279,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M0.7 | CI and CD workflows written, Android release signing added to Gradle |
 | 25 Sep 2026 | M0.6 | Contracts for the engine, protocol, wallet, bots and folder ownership agreed and frozen in docs/contracts, decisions logged in docs/decisions.md |
 | 25 Sep 2026 | M0.6 M0.4 | Flutter project moved to apps/mobile. Bugs B1 to B6 fixed with tests |
+| 25 Sep 2026 | M1.7 | Board drawn with CustomPainter from a tested track geometry, rotatable so your home sits bottom left |
 
 ## 5. Scope of the first release
 
