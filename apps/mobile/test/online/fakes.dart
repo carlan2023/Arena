@@ -29,6 +29,28 @@ class FakeApi implements ArenaApi {
     return Session(token: 'tok-1', user: user);
   }
 
+  /// Status code [me] fails with, to simulate a rejected guest token.
+  int? meStatus;
+
+  @override
+  Future<Session> guest() async {
+    calls.add('guest');
+    if (failWith case final e?) throw e;
+    return Session(
+      token: 'guest-tok',
+      user: const UserView(id: 'g1', phone: '', displayName: 'Player 7f3a'),
+    );
+  }
+
+  @override
+  Future<UserView> me(String token) async {
+    calls.add('me $token');
+    if (meStatus case final status?) {
+      throw ApiError(status, 'unauthorized', 'no');
+    }
+    return user;
+  }
+
   @override
   Future<UserView> setDisplayName(String token, String name) async {
     calls.add('name $token $name');

@@ -17,6 +17,9 @@ class User {
     required this.createdAt,
   });
 
+  /// A guest has no verified phone and may only play free games.
+  bool get isGuest => phone.isEmpty;
+
   User copyWith({String? displayName}) => User(
     id: id,
     phone: phone,

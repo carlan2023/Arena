@@ -9,6 +9,10 @@ import 'config.dart';
 /// The HTTP routes the app uses (protocol.md). Faked in tests.
 abstract interface class ArenaApi {
   Future<Session> login(String idToken);
+
+  /// A guest account for free play, no phone needed (D33).
+  Future<Session> guest();
+  Future<UserView> me(String token);
   Future<UserView> setDisplayName(String token, String name);
   Future<RoomView> createRoom(
     String token, {
@@ -35,6 +39,16 @@ class HttpArenaApi implements ArenaApi {
     final user = await c.login(idToken);
     return Session(token: c.sessionToken!, user: user);
   }
+
+  @override
+  Future<Session> guest() async {
+    final c = _client(null);
+    final user = await c.guest();
+    return Session(token: c.sessionToken!, user: user);
+  }
+
+  @override
+  Future<UserView> me(String token) => _client(token).me();
 
   @override
   Future<UserView> setDisplayName(String token, String name) =>

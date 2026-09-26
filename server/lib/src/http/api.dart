@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HttpConnectionInfo;
 
 import 'package:arena_auth/arena_auth.dart';
 import 'package:arena_protocol/arena_protocol.dart';
@@ -41,6 +42,11 @@ class Api {
          limit: config.roomCreatesPerHour,
          window: const Duration(hours: 1),
          clock: clock,
+       ),
+       _guests = RateLimiter(
+         limit: config.guestsPerHour,
+         window: const Duration(hours: 1),
+         clock: clock,
        );
 
   final ServerConfig config;
@@ -56,6 +62,7 @@ class Api {
   /// Set when PAYMENTS_PROVIDER=fake; enables the dev confirm route.
   final FakePaymentProvider? fakePayments;
   final RateLimiter _roomCreates;
+  final RateLimiter _guests;
 
   Router router() {
     final r = Router(
@@ -67,6 +74,7 @@ class Api {
       (Request req) => _json({'ok': true, 'version': config.appVersion}),
     );
     r.post('/v1/auth/login', _wrap(_login, authed: false));
+    r.post('/v1/auth/guest', _wrap(_guest, authed: false));
     r.get('/v1/me', _wrap(_me));
     r.patch('/v1/me', _wrap(_patchMe));
     r.post('/v1/rooms', _wrap(_createRoom));
@@ -155,6 +163,35 @@ class Api {
     }
   }
 
+  /// D33: free play needs no phone. Limited per client address.
+  Future<Object?> _guest(Request req, User? _, List<String> _) async {
+    if (!_guests.allow(_clientAddress(req))) {
+      throw HttpError(429, ErrorCodes.rateLimited, 'too many guest accounts');
+    }
+    final (token, user) = await auth.guest();
+    return {'sessionToken': token, 'user': _user(user)};
+  }
+
+  String _clientAddress(Request req) {
+    final forwarded = req.headers['x-forwarded-for'];
+    if (forwarded != null && forwarded.isNotEmpty) {
+      return forwarded.split(',').first.trim();
+    }
+    final info = req.context['shelf.io.connection_info'];
+    return info is HttpConnectionInfo ? info.remoteAddress.address : 'unknown';
+  }
+
+  /// Paid play and the wallet need a verified phone (D33).
+  void _requirePhone(User user) {
+    if (user.isGuest) {
+      throw HttpError(
+        403,
+        ErrorCodes.phoneRequired,
+        'log in with your phone number to use the wallet and paid tables',
+      );
+    }
+  }
+
   Object? _me(Request req, User? user, List<String> _) => _user(user!);
 
   Future<Object?> _patchMe(Request req, User? user, List<String> _) async {
@@ -210,6 +247,7 @@ class Api {
     } catch (e) {
       throw HttpError(400, ErrorCodes.badRequest, 'bad rules: $e');
     }
+    if (stake > 0) _requirePhone(user!);
     if (stake > 0 && !config.paidTablesEnabled) {
       throw HttpError(
         403,
@@ -248,19 +286,23 @@ class Api {
 
   // --- Wallet ----------------------------------------------------------------
 
-  Future<Object?> _wallet(Request req, User? user, List<String> _) async => {
-    'balance': await ledger.balance(AccountId.wallet(user!.id)),
-    'currency': 'UGX',
-  };
+  Future<Object?> _wallet(Request req, User? user, List<String> _) async {
+    _requirePhone(user!);
+    return {
+      'balance': await ledger.balance(AccountId.wallet(user.id)),
+      'currency': 'UGX',
+    };
+  }
 
   Future<Object?> _history(Request req, User? user, List<String> _) async {
+    _requirePhone(user!);
     final raw = req.url.queryParameters['limit'];
     final limit = raw == null ? 50 : int.tryParse(raw);
     if (limit == null || limit < 1 || limit > 200) {
       throw HttpError(400, ErrorCodes.badRequest, 'limit must be 1 to 200');
     }
     final entries = await ledger.history(
-      AccountId.wallet(user!.id),
+      AccountId.wallet(user.id),
       limit: limit,
     );
     return {
@@ -278,6 +320,7 @@ class Api {
   }
 
   Future<Object?> _deposit(Request req, User? user, List<String> _) async {
+    _requirePhone(user!);
     final body = await _body(req);
     final amount = body['amount'];
     final msisdn = body['msisdn'];
@@ -296,7 +339,7 @@ class Api {
     // network the player picked.
     final name = config.fakePayments ? 'fake' : provider;
     final payment = await payments.startDeposit(
-      userId: user!.id,
+      userId: user.id,
       provider: name,
       amount: amount,
       msisdn: msisdn,

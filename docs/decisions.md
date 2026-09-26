@@ -36,6 +36,7 @@ Short records of decisions made while building. Rule defaults here are placehold
 | D30 | 26 Sep 2026 | With PAYMENTS_PROVIDER=fake every deposit goes to the fake provider. The dev confirm route only confirms the caller's own payment and also accepts a failed status | Local and test runs need no provider accounts |
 | D31 | 26 Sep 2026 | A forfeit is broadcast as a full room_state. leave_room in the lobby sends no reply to the leaver. A lobby player who drops loses the seat after the 60 second grace | No dedicated protocol message is needed for M2 |
 | D32 | 26 Sep 2026 | With fake login and fake payments a missing SESSION_SECRET is made at random on start, so docker compose up works with no setup. Otherwise the server refuses to start without one | One command local stack |
+| D33 | 26 Sep 2026 | Guest mode: free play needs no login. The app starts a guest account on the first online action; the phone login is asked for only for paid tables and the wallet, which the server refuses to guests with phone_required | A login wall before a free game drives players away. Money needs a verified phone |
 
 ## Open for Allan
 
@@ -48,7 +49,7 @@ Short records of decisions made while building. Rule defaults here are placehold
 | Q5 | Google Play account, personal or organisation (M0.8) | None |
 | Q6 | Figma wireframes (M0.9) | None |
 | Q7 | MTN MoMo and Airtel developer accounts (M0.10, M2.10) | Fake provider |
-| Q8 | Firebase project for phone codes (M2.3) | Fake login, code 123456 |
+| Q8 | Firebase project for phone codes (M2.3) | Fake login, code 123456. Guests need no login (D33) |
 | Q9 | Hosting account, staging domain and GitHub DEPLOY secrets (M2.8) | Local docker compose |
 | Q10 | Old email login and grid board files in apps/mobile/lib/screens, widgets, services and models are unused; approve deleting them | Kept, unused |
 | Q11 | Luganda text for quick chat and the app | English only |

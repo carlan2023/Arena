@@ -52,6 +52,61 @@ void main() {
       );
     });
 
+    test('guests play free rooms but not the wallet or paid tables', () async {
+      final g = ArenaClient(baseUrl: server.baseUrl);
+      clients.add(g);
+      final user = await g.guest();
+      expect(user.isGuest, isTrue);
+      expect(user.displayName, startsWith('Player '));
+      expect((await g.setDisplayName('Nakato')).displayName, 'Nakato');
+      final room = await g.createRoom(mode: GameMode.oneVsOne, seats: 2);
+      expect(room.code, hasLength(6));
+      Matcher phoneRequired() => throwsA(
+        isA<ApiError>()
+            .having((e) => e.status, 'status', 403)
+            .having((e) => e.code, 'code', 'phone_required'),
+      );
+      await expectLater(g.request('GET', '/v1/wallet'), phoneRequired());
+      await expectLater(
+        g.request('GET', '/v1/wallet/history'),
+        phoneRequired(),
+      );
+      await expectLater(
+        g.request('POST', '/v1/wallet/deposits', {
+          'amount': 5000,
+          'msisdn': '256700000001',
+          'provider': 'fake',
+        }),
+        phoneRequired(),
+      );
+      await expectLater(
+        g.createRoom(mode: GameMode.oneVsOne, seats: 2, stake: 1000),
+        phoneRequired(),
+      );
+      final phoneUser = await loggedIn('+256772000009');
+      expect(phoneUser.user!.isGuest, isFalse);
+      expect((await phoneUser.request('GET', '/v1/wallet'))['balance'], 0);
+    });
+
+    test('guest accounts are rate limited per address', () async {
+      await server.close();
+      server = await startServer(
+        ServerConfig.forTests(guestsPerHour: 2),
+        overrides: ServerOverrides(log: (_) {}),
+      );
+      for (var i = 0; i < 2; i++) {
+        final g = ArenaClient(baseUrl: server.baseUrl);
+        clients.add(g);
+        await g.guest();
+      }
+      final g = ArenaClient(baseUrl: server.baseUrl);
+      clients.add(g);
+      await expectLater(
+        g.guest(),
+        throwsA(isA<ApiError>().having((e) => e.status, 'status', 429)),
+      );
+    });
+
     test('bad login and missing token give 401', () async {
       final c = ArenaClient(baseUrl: server.baseUrl);
       clients.add(c);

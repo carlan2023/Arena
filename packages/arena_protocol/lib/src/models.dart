@@ -14,7 +14,15 @@ class UserView {
   final String phone;
   final String displayName;
 
-  Json toJson() => {'id': id, 'phone': phone, 'displayName': displayName};
+  /// A guest has no verified phone and may only play free games (D33).
+  bool get isGuest => phone.isEmpty;
+
+  Json toJson() => {
+    'id': id,
+    'phone': phone,
+    'displayName': displayName,
+    'isGuest': isGuest,
+  };
 
   factory UserView.fromJson(Json j) => UserView(
     id: reqString(j, 'id'),

@@ -40,10 +40,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
     if (choice == null || !mounted) return;
-    final session = ref.read(authProvider).value;
-    if (session == null) return;
     setState(() => _busy = true);
     try {
+      // No sign up for free play: a guest session is made if needed (D33).
+      final session = await ref.read(authProvider.notifier).ensureSession();
       final room = await ref
           .read(arenaApiProvider)
           .createRoom(session.token, mode: choice.$1, seats: choice.$2);
@@ -77,11 +77,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(authProvider).value;
+    final verified = session != null && !session.isGuest;
+    final text = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Arena'),
         actions: [
-          if (session != null)
+          if (verified)
             IconButton(
               tooltip: 'Log out',
               icon: const Icon(Icons.logout),
@@ -93,22 +95,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            if (session != null)
-              Text(
-                'Hello, ${session.user.displayName}',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+            Text(
+              session == null
+                  ? 'Ludo the way we play it'
+                  : 'Hello, ${session.user.displayName}',
+              style: text.titleLarge,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              verified
+                  ? 'Free and paid tables are open to you.'
+                  : 'Free games need no sign up. Just play.',
+              style: text.bodyMedium,
+            ),
             const SizedBox(height: 24),
             FilledButton.icon(
               key: const Key('play-friends'),
-              onPressed: _busy || session == null ? null : _createRoom,
+              onPressed: _busy ? null : _createRoom,
               icon: const Icon(Icons.group_add),
               label: const Text('Play with friends'),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               key: const Key('join-code'),
-              onPressed: session == null ? null : _joinByCode,
+              onPressed: _joinByCode,
               icon: const Icon(Icons.login),
               label: const Text('Join with a code'),
             ),
@@ -119,6 +129,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: const Icon(Icons.phone_android),
               label: const Text('Pass and play'),
             ),
+            if (!verified) ...[
+              const SizedBox(height: 32),
+              Card(
+                child: ListTile(
+                  key: const Key('sign-in'),
+                  leading: const Icon(Icons.account_balance_wallet_outlined),
+                  title: const Text('Play for money'),
+                  subtitle: const Text(
+                    'Paid tables and the wallet need your phone number.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/login'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

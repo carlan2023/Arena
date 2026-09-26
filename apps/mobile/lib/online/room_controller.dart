@@ -10,6 +10,7 @@ import '../game/local_game.dart' show colorName;
 import '../game/move_planner.dart';
 import '../game/move_selection.dart';
 import '../game/table_view.dart';
+import 'api.dart';
 import 'auth.dart';
 import 'socket.dart';
 
@@ -129,16 +130,16 @@ class RoomController extends Notifier<RoomScreenView> implements TableActions {
 
   Future<void> _connect() async {
     if (_closed) return;
-    final session = ref.read(authProvider).value;
-    if (session == null) {
-      _fatal = 'Please log in again';
-      _emit();
-      return;
-    }
     final GameSocket socket;
     try {
+      // Free play starts a guest session when there is none (D33).
+      final session = await ref.read(authProvider.notifier).ensureSession();
+      if (_closed) return;
       socket = await ref.read(socketConnectorProvider)(session.token);
     } on Object {
+      if (await _guestTokenRejected()) {
+        await ref.read(authProvider.notifier).renewGuest();
+      }
       _scheduleRetry();
       return;
     }
@@ -159,6 +160,34 @@ class RoomController extends Notifier<RoomScreenView> implements TableActions {
       _timings.ping,
       (_) => _send((c) => PingMessage(cseq: c)),
     );
+  }
+
+  /// True when the server no longer accepts our guest token, as after a
+  /// server restart with a new secret. A lost network is not a rejection.
+  Future<bool> _guestTokenRejected() async {
+    final session = ref.read(authProvider).value;
+    if (session == null || !session.isGuest) return false;
+    try {
+      await ref.read(arenaApiProvider).me(session.token);
+      return false;
+    } on ApiError catch (e) {
+      return e.status == 401;
+    } on Object {
+      return false;
+    }
+  }
+
+  Future<void> _renewGuestAndReconnect() async {
+    _sub?.cancel();
+    _sub = null;
+    await _socket?.close();
+    _socket = null;
+    try {
+      await ref.read(authProvider.notifier).renewGuest();
+    } on Object {
+      // Offline: the retry below tries again.
+    }
+    if (!_closed) _scheduleRetry();
   }
 
   void _join() => _send(
@@ -316,6 +345,12 @@ class RoomController extends Notifier<RoomScreenView> implements TableActions {
           ErrorCodes.alreadyStarted ||
           ErrorCodes.roomFull ||
           ErrorCodes.unauthorized:
+        if (m.code == ErrorCodes.unauthorized &&
+            (ref.read(authProvider).value?.isGuest ?? false)) {
+          // A stale guest token: start a fresh guest and join again.
+          _renewGuestAndReconnect();
+          return;
+        }
         if (_room == null || m.code == ErrorCodes.unauthorized) {
           _fatal = switch (m.code) {
             ErrorCodes.roomNotFound => 'Room $code was not found',

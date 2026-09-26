@@ -51,6 +51,9 @@ class Session {
   /// Players pick a name before they reach the home screen.
   bool get hasName => user.displayName.trim().isNotEmpty;
 
+  /// Guests play free games only; paid play needs a phone login (D33).
+  bool get isGuest => user.isGuest;
+
   Map<String, Object?> toJson() => {'token': token, 'user': user.toJson()};
 
   factory Session.fromJson(Map<String, Object?> j) => Session(
@@ -112,10 +115,35 @@ final authProvider = AsyncNotifierProvider<AuthController, Session?>(
   AuthController.new,
 );
 
-/// The current session: null when logged out.
+/// The current session: null until the player first goes online.
 class AuthController extends AsyncNotifier<Session?> {
   @override
   Future<Session?> build() => ref.read(sessionStoreProvider).load();
+
+  Future<Session>? _starting;
+
+  /// The current session, or a new guest one. Free play never asks for a
+  /// phone number (D33).
+  Future<Session> ensureSession() async {
+    final current = state.value;
+    if (current != null) return current;
+    return _starting ??= _startGuest().whenComplete(() => _starting = null);
+  }
+
+  /// Replaces a guest session the server no longer accepts, for example
+  /// after a server restart with a new secret.
+  Future<Session> renewGuest() async {
+    await ref.read(sessionStoreProvider).save(null);
+    state = const AsyncData(null);
+    return ensureSession();
+  }
+
+  Future<Session> _startGuest() async {
+    final session = await ref.read(arenaApiProvider).guest();
+    await ref.read(sessionStoreProvider).save(session);
+    state = AsyncData(session);
+    return session;
+  }
 
   /// Checks the code, logs in to the server and keeps the session.
   Future<Session> login(String phone, String code) async {

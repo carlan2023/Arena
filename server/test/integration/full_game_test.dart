@@ -90,7 +90,9 @@ void main() {
       final alice = ArenaClient(baseUrl: server.baseUrl);
       final bob = ArenaClient(baseUrl: server.baseUrl);
       await alice.login('fake:+256700000001');
-      await bob.login('fake:+256700000002');
+      // Bob plays as a guest: free rooms need no phone (D33).
+      final bobUser = await bob.guest();
+      expect(bobUser.isGuest, isTrue);
 
       final room = await alice.createRoom(mode: GameMode.oneVsOne, seats: 2);
       expect(room.code, hasLength(6));

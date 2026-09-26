@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../online/auth.dart';
 import '../online/phone.dart';
@@ -19,10 +20,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phone = TextEditingController();
   final _code = TextEditingController();
   final _name = TextEditingController();
-  // A saved session without a name resumes at the name step.
-  late _Step _step = ref.read(authProvider).value == null
-      ? _Step.phone
-      : _Step.name;
+  // A phone session without a name resumes at the name step; guests start
+  // with their number.
+  late _Step _step = switch (ref.read(authProvider).value) {
+    final s? when !s.isGuest && !s.hasName => _Step.name,
+    _ => _Step.phone,
+  };
+  bool _leaving = false;
   String? _normalized;
   String? _error;
   bool _busy = false;
@@ -74,6 +78,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!session.hasName && mounted) setState(() => _step = _Step.name);
   });
 
+  /// Back to where the player came from: the page that sent them here, or
+  /// the one below, or home.
+  void _finish() {
+    if (!mounted || _leaving) return;
+    _leaving = true;
+    final GoRouterState route;
+    try {
+      route = GoRouterState.of(context);
+    } on GoError {
+      return; // The router already moved on (a redirect ran first).
+    }
+    final from = route.uri.queryParameters['from'];
+    if (from != null) {
+      context.go(from);
+    } else if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
   Future<void> _saveName() => _run(() async {
     final name = _name.text.trim();
     if (name.isEmpty) throw const AuthException('Enter a name');
@@ -82,6 +107,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Done once a phone login has a name, however this page was rebuilt.
+    final session = ref.watch(authProvider).value;
+    if (session != null && !session.isGuest && session.hasName) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _finish());
+    }
     final (title, field, button, action) = switch (_step) {
       _Step.phone => (
         'Your phone number',
@@ -131,6 +161,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           padding: const EdgeInsets.all(24),
           children: [
             Text(title, style: Theme.of(context).textTheme.titleLarge),
+            if (_step == _Step.phone)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Needed for paid tables and the wallet. '
+                  'Free games work without it.',
+                ),
+              ),
             const SizedBox(height: 16),
             field,
             if (_error != null)

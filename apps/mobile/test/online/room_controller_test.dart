@@ -301,16 +301,59 @@ void main() {
     expect(h.view.table!.serverOffset.inSeconds, inInclusiveRange(59, 60));
   });
 
-  testWidgets('without a session the room asks to log in', (tester) async {
+  testWidgets('without a session the room joins as a guest', (tester) async {
     final connector = FakeConnector();
+    final api = FakeApi();
     final container = ProviderContainer(
-      overrides: [for (final o in onlineOverrides(connector, session: null)) o],
+      overrides: [
+        for (final o in onlineOverrides(connector, api: api, session: null)) o,
+      ],
     );
     await container.read(authProvider.future);
     final sub = container.listen(roomProvider(code), (_, _) {});
     await tester.pump();
-    expect(sub.read().fatal, isNotNull);
-    expect(connector.tokens, isEmpty);
+    await tester.pump();
+    expect(sub.read().fatal, isNull);
+    expect(api.calls, ['guest']);
+    expect(connector.tokens, ['guest-tok']);
+    expect(container.read(authProvider).value!.isGuest, isTrue);
+    container.dispose();
+  });
+
+  testWidgets('a guest token the server rejects is replaced', (tester) async {
+    final connector = FakeConnector()..fail = true;
+    final api = FakeApi()..meStatus = 401;
+    final container = ProviderContainer(
+      overrides: [
+        for (final o in onlineOverrides(connector, api: api, session: null)) o,
+      ],
+    );
+    await container.read(authProvider.future);
+    final sub = container.listen(roomProvider(code), (_, _) {});
+    await tester.pump();
+    await tester.pump();
+    expect(api.calls, ['guest', 'me guest-tok', 'guest']);
+    connector.fail = false;
+    api.meStatus = null;
+    await tester.pump(const Duration(seconds: 1));
+    expect(connector.last.sent.first, isA<JoinRoomMessage>());
+    expect(sub.read().fatal, isNull);
+    container.dispose();
+  });
+
+  testWidgets('a lost network does not throw away the guest', (tester) async {
+    final connector = FakeConnector()..fail = true;
+    final api = FakeApi();
+    final container = ProviderContainer(
+      overrides: [
+        for (final o in onlineOverrides(connector, api: api, session: null)) o,
+      ],
+    );
+    await container.read(authProvider.future);
+    container.listen(roomProvider(code), (_, _) {});
+    await tester.pump();
+    await tester.pump();
+    expect(api.calls, ['guest', 'me guest-tok']);
     container.dispose();
   });
 }

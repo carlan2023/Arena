@@ -292,6 +292,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 26 Sep 2026 | M0.7 | Web deploy to Firebase Hosting added, with preview links on pull requests |
 | 26 Sep 2026 | M0.7 | Merged main. Web deploy now builds apps/mobile with the pinned Flutter version and uses the FIREBASE_SERVICE_ACCOUNT_ARENA_CDDFA secret. The two npm based Firebase workflows removed. Gradle raised to 8.14 so the release APK builds |
 | 26 Sep 2026 | M0.7 | Android build brought up to what Flutter now requires: Android Gradle Plugin 8.13, Kotlin 2.2.20, Java 17. The release APK builds again |
+| 26 Sep 2026 | M2.3 M2.12 | Guest mode. Free games, rooms and invite links work with no login; the app makes a guest account on the first online action. The phone login is only asked for paid tables and the wallet, and the server refuses those to guests |
 
 ## 5. Scope of the first release
 
@@ -415,7 +416,7 @@ The app launches in English and Luganda. Luganda text must be written and checke
 
 ### First time players
 
-Sign up with phone number, code, name and avatar in under a minute. Then a three minute tutorial against a bot walks through each Ugandan rule once: leaving home with a 6, combining dice, making a block, breaking a block with a double 6, and finishing exactly. Players who know the rules can skip it. Finishing the tutorial earns coins.
+New players can start a free game straight away as a guest, with no sign up. The phone number, code, name and avatar are asked for only when they want paid tables or the wallet, and take under a minute. On first open, a three minute tutorial against a bot walks through each Ugandan rule once: leaving home with a 6, combining dice, making a block, breaking a block with a double 6, and finishing exactly. Players who know the rules can skip it. Finishing the tutorial earns coins.
 
 ### Core screens for Figma
 
@@ -577,7 +578,7 @@ flutter build apk
 1. Start Postgres, Redis and the game server with `docker compose up --build` from the repo root. The server answers on http://localhost:8080/health. Without a server/.env it runs with fake login and fake payments. To change settings, copy server/.env.example to server/.env; every setting there says where its value comes from.
 2. Or run the server without Docker: `cd server && dart pub get && dart run bin/server.dart`. With no DATABASE_URL and REDIS_URL it keeps everything in memory.
 3. Run the app on an emulator with `cd apps/mobile && flutter run --dart-define=ARENA_SERVER_URL=http://10.0.2.2:8080`. On a real phone on the same network, use the computer's address instead of 10.0.2.2.
-4. Log in with any Ugandan number and the code 123456. Create a room, share the link or code, and join from a second phone or emulator.
+4. Tap Play with friends. No login is needed for free games; the app plays as a guest. Share the link or code and join from a second phone or emulator. The phone login, with any Ugandan number and the code 123456, is only needed for the wallet.
 5. A test deposit: POST /v1/wallet/deposits with provider fake, then POST /v1/dev/payments/ID/confirm. GET /v1/wallet shows the balance.
 
 Tests for every package run with `dart test` in its folder, and `flutter test` in apps/mobile. Server tests that need Postgres and Redis run when DATABASE_URL and REDIS_URL are set.

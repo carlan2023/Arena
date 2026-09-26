@@ -58,6 +58,9 @@ void main() {
   testWidgets('phone, wrong code, right code, name, then home', (tester) async {
     final app = App(tester);
     await app.start(loggedIn: false);
+    expect(find.byKey(const Key('play-friends')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('sign-in')));
+    await settle(tester);
     await tester.enterText(find.byKey(const Key('phone')), '0772 000001');
     await tester.tap(find.byKey(const Key('login-next')));
     await settle(tester);
@@ -84,6 +87,8 @@ void main() {
   testWidgets('a bad phone number is refused on the phone', (tester) async {
     final app = App(tester);
     await app.start(loggedIn: false);
+    await tester.tap(find.byKey(const Key('sign-in')));
+    await settle(tester);
     await tester.enterText(find.byKey(const Key('phone')), '12345');
     await tester.tap(find.byKey(const Key('login-next')));
     await settle(tester);
@@ -91,23 +96,56 @@ void main() {
     await app.stop();
   });
 
-  testWidgets('an invite link while logged out returns to the room after '
-      'login', (tester) async {
+  testWidgets('an invite link with no account opens the room as a guest', (
+    tester,
+  ) async {
     final app = App(tester);
-    app.api.user = me;
     await app.start(loggedIn: false);
     app.links.add(Uri.parse('arena://r/abc234'));
     await settle(tester);
-    expect(find.byKey(const Key('phone')), findsOneWidget);
+    expect(find.byKey(const Key('phone')), findsNothing);
+    expect(find.byType(RoomScreen), findsOneWidget);
+    expect(find.text('Room ABC234'), findsOneWidget);
+    expect(app.api.calls, ['guest']);
+    expect(app.connector.tokens, ['guest-tok']);
+    await app.stop();
+  });
 
+  testWidgets('a guest creates a room without signing up', (tester) async {
+    final app = App(tester);
+    await app.start(loggedIn: false);
+    await tester.tap(find.byKey(const Key('play-friends')));
+    await settle(tester);
+    await tester.tap(find.text('1 v 1'));
+    await settle(tester);
+    expect(app.api.calls, ['guest', 'create guest-tok oneVsOne 2']);
+    expect(find.byType(RoomScreen), findsOneWidget);
+    await app.stop();
+  });
+
+  testWidgets('a guest can still sign in with a phone for paid play', (
+    tester,
+  ) async {
+    final app = App(tester);
+    app.api.user = me;
+    await app.start(loggedIn: false);
+    await tester.tap(find.byKey(const Key('play-friends')));
+    await settle(tester);
+    await tester.tap(find.text('1 v 1'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Leave'));
+    await settle(tester);
+    expect(find.byKey(const Key('sign-in')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('sign-in')));
+    await settle(tester);
     await tester.enterText(find.byKey(const Key('phone')), '772000001');
     await tester.tap(find.byKey(const Key('login-next')));
     await settle(tester);
     await tester.enterText(find.byKey(const Key('code')), '123456');
     await tester.tap(find.byKey(const Key('login-next')));
     await settle(tester);
-    expect(find.byType(RoomScreen), findsOneWidget);
-    expect(find.text('Room ABC234'), findsOneWidget);
+    expect(find.text('Hello, Amina'), findsOneWidget);
+    expect(find.byKey(const Key('sign-in')), findsNothing);
     await app.stop();
   });
 

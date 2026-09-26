@@ -460,6 +460,9 @@ abstract final class ErrorCodes {
   static const rateLimited = 'rate_limited';
   static const paidTablesDisabled = 'paid_tables_disabled';
   static const insufficientFunds = 'insufficient_funds';
+
+  /// Guests may play free games only; paid play and the wallet need a phone.
+  static const phoneRequired = 'phone_required';
   static const internal = 'internal';
 }
 

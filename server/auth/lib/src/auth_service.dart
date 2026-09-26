@@ -21,6 +21,15 @@ class AuthService {
     return (sessions.issue(user.id), user);
   }
 
+  /// Starts a guest account: no phone, a default name, free play only.
+  /// Paid play and the wallet need a phone login (D33).
+  Future<(String sessionToken, User user)> guest() async {
+    final user = await users.upsertByIdentity(
+      VerifiedIdentity(uid: 'guest-${newUserId()}'),
+    );
+    return (sessions.issue(user.id), user);
+  }
+
   /// The user behind a session token, or null.
   Future<User?> authenticate(String sessionToken) async {
     final userId = sessions.verify(sessionToken);

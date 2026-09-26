@@ -50,6 +50,13 @@ class ArenaClient {
     return user = UserView.fromJson(_asJson(body['user']));
   }
 
+  /// POST /v1/auth/guest. A guest account for free play, no phone needed.
+  Future<UserView> guest() async {
+    final body = await _send('POST', '/v1/auth/guest');
+    sessionToken = body['sessionToken'] as String;
+    return user = UserView.fromJson(_asJson(body['user']));
+  }
+
   Future<UserView> me() async =>
       UserView.fromJson(await _send('GET', '/v1/me'));
 

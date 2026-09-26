@@ -5,9 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('app starts on the phone login screen when logged out', (
-    tester,
-  ) async {
+  testWidgets('app opens on home with no login wall', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -18,7 +16,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Your phone number'), findsOneWidget);
-    expect(find.byKey(const Key('phone')), findsOneWidget);
+    expect(find.text('Free games need no sign up. Just play.'), findsOneWidget);
+    expect(find.byKey(const Key('play-friends')), findsOneWidget);
+    expect(find.byKey(const Key('phone')), findsNothing);
   });
 }

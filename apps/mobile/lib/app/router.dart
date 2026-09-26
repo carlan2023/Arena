@@ -11,9 +11,9 @@ import '../ui/local_setup_screen.dart';
 import '../ui/login_screen.dart';
 import '../ui/room_screen.dart';
 
-/// Where a signed out player may still go: pass and play works offline.
-bool _isOpen(String path) =>
-    path == '/login' || path == '/splash' || path.startsWith('/local');
+/// Pages that never carry a `from` return address.
+bool _isEntry(String path) =>
+    path == '/' || path == '/login' || path == '/splash';
 
 String _withFrom(String path, String? from) =>
     from == null ? path : '$path?from=${Uri.encodeComponent(from)}';
@@ -25,23 +25,25 @@ final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     initialLocation: '/',
     refreshListenable: refresh,
+    // Nothing is behind a login: guests play free games (D33). Only a phone
+    // login without a name is sent back to finish the name step.
     redirect: (context, state) {
       final auth = ref.read(authProvider);
       final path = state.uri.path;
       final from =
           state.uri.queryParameters['from'] ??
-          (_isOpen(path) || path == '/' ? null : state.uri.toString());
+          (_isEntry(path) ? null : state.uri.toString());
       if (!auth.hasValue && !auth.hasError) {
         return path == '/splash' ? null : _withFrom('/splash', from);
       }
-      final loggedIn = auth.value?.hasName ?? false;
-      if (!loggedIn) {
-        if (path == '/splash' || !_isOpen(path)) {
-          return _withFrom('/login', from);
-        }
-        return null;
+      final session = auth.value;
+      final verified = session != null && !session.isGuest;
+      if (verified && !session.hasName) {
+        return path == '/login' ? null : _withFrom('/login', from);
       }
-      if (path == '/splash' || path == '/login') return from ?? '/';
+      if (path == '/splash' || (path == '/login' && verified)) {
+        return from ?? '/';
+      }
       return null;
     },
     routes: [

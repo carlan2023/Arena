@@ -70,6 +70,7 @@ class ServerConfig {
     this.roomIdle = const Duration(minutes: 30),
     this.liveRoomTtl = const Duration(hours: 6),
     this.roomCreatesPerHour = 10,
+    this.guestsPerHour = 30,
     this.wsMessagesPerSecond = 20,
     this.paidTablesEnabled = false,
   }) {
@@ -84,6 +85,7 @@ class ServerConfig {
     Duration botDelay = const Duration(milliseconds: 800),
     Duration roomIdle = const Duration(minutes: 30),
     int roomCreatesPerHour = 10,
+    int guestsPerHour = 1000,
     int wsMessagesPerSecond = 20,
     String? databaseUrl,
     String? redisUrl,
@@ -99,6 +101,7 @@ class ServerConfig {
       botDelay: botDelay,
       roomIdle: roomIdle,
       roomCreatesPerHour: roomCreatesPerHour,
+      guestsPerHour: guestsPerHour,
       wsMessagesPerSecond: wsMessagesPerSecond,
       databaseUrl: databaseUrl,
       redisUrl: redisUrl,
@@ -196,6 +199,7 @@ class ServerConfig {
       roomIdle: Duration(minutes: intOf('ROOM_IDLE_MINUTES', 30)),
       liveRoomTtl: Duration(hours: intOf('LIVE_ROOM_TTL_HOURS', 6)),
       roomCreatesPerHour: intOf('ROOM_CREATES_PER_HOUR', 10),
+      guestsPerHour: intOf('GUESTS_PER_HOUR', 30),
       wsMessagesPerSecond: intOf('WS_MESSAGES_PER_SECOND', 20),
     );
   }
@@ -235,6 +239,9 @@ class ServerConfig {
   final Duration roomIdle;
   final Duration liveRoomTtl;
   final int roomCreatesPerHour;
+
+  /// Guest accounts one client address may start per hour (D33).
+  final int guestsPerHour;
   final int wsMessagesPerSecond;
 
   /// Paid tables are refused with paid_tables_disabled until M3.9.

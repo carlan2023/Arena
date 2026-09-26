@@ -135,3 +135,11 @@ These settle the review round and override anything above that disagrees.
 13. GET /r/{code} serves a small HTML page that opens the app through the arena://r/{code} link and otherwise points to the download. The app accepts both /r/{code} links and arena://r/{code}.
 14. Fake login id tokens are `fake:+256XXXXXXXXX` (E.164). The app sends the phone in that form.
 15. Defaults: server migration ids `server_NNN_name`, run under a Postgres advisory lock. Room creation limit 10 per user per hour, 20 web socket messages per second per socket, above which rate_limited. Emote ids up to 32 characters. The token query parameter is never logged. /health version from APP_VERSION, default dev. Paid game rules (forfeit on timeout and after grace) sit behind stake > 0 and are unit tested only, since paid rooms are refused in M2. The server refuses to start with AUTH_PROVIDER=fake and a real PAYMENTS_PROVIDER.
+
+## Amendment: guest play (26 Sep 2026, D33)
+
+1. `POST /v1/auth/guest` with no body returns `{"sessionToken", "user"}` for a new guest account. No phone and no code. Limited per client address by GUESTS_PER_HOUR, default 30, then 429 rate_limited.
+2. `User` gains `isGuest: bool`, true when the account has no verified phone.
+3. Guests may create, join and play free rooms like anyone else.
+4. The wallet routes (`GET /v1/wallet`, `GET /v1/wallet/history`, `POST /v1/wallet/deposits`) and creating a room with a stake refuse guests with 403 `phone_required`. Joining a paid room will do the same when paid tables arrive in M3.9.
+5. The app never asks for a login before free play. It starts a guest session the first time the player goes online, and offers the phone login only for paid play and the wallet. A guest token the server no longer accepts is replaced by a new guest.
