@@ -1,0 +1,11 @@
+name: ludo_engine
+description: Pure Dart rules engine for Ugandan Ludo. No IO, no clock, no randomness.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+dev_dependencies:
+  coverage: ^1.15.1
+  lints: ^6.1.0
+  test: ^1.32.0

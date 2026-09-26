@@ -196,12 +196,12 @@ Done when a full game can be played offline against bots, with every rule in sec
 
 | ID | Task | Status | Date done |
 |---|---|---|---|
-| M1.1 | Game state model: track, home columns, pieces, blocks | In progress | |
-| M1.2 | Legal move generation for two dice | In progress | |
-| M1.3 | Block rules, including block capture | In progress | |
-| M1.4 | Exact finish and win detection | In progress | |
-| M1.5 | Rule settings for R1 to R8 | In progress | |
-| M1.6 | Unit tests covering every test case in section 2, with at least 95 percent coverage | In progress | |
+| M1.1 | Game state model: track, home columns, pieces, blocks | Done | 26 Sep 2026 |
+| M1.2 | Legal move generation for two dice | Done | 26 Sep 2026 |
+| M1.3 | Block rules, including block capture | Done | 26 Sep 2026 |
+| M1.4 | Exact finish and win detection | Done | 26 Sep 2026 |
+| M1.5 | Rule settings for R1 to R8 | Done | 26 Sep 2026 |
+| M1.6 | Unit tests covering every test case in section 2, with at least 95 percent coverage | Done | 26 Sep 2026 |
 | M1.7 | New board drawn with CustomPainter | Done | 25 Sep 2026 |
 | M1.8 | Pieces, move highlights and animations | Not started | |
 | M1.9 | Two dice tray and move selection | Not started | |
@@ -282,6 +282,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M0.7 M0.4 | CI checks every Dart package with Postgres and Redis, gates engine coverage at 95 percent and runs on claude branches too. Deploys only follow pushes. .gitattributes added, B8 fixed. M0.3, M0.5, M0.8, M0.9 and M0.10 marked Blocked on Allan |
 | 25 Sep 2026 | M1.7 | Board drawn with CustomPainter from a tested track geometry, rotatable so your home sits bottom left |
 | 25 Sep 2026 | M2.3 M2.9 M2.10 M2.11 | Login package with Firebase token check, fake login and session tokens. Double entry ledger in memory and Postgres. MTN, Airtel and fake payment providers. A callback received twice, or many at once, credits the wallet once |
+| 26 Sep 2026 | M1.1 to M1.6 | Rules engine in packages/ludo_engine: two dice, blocks, block capture with sixes, exact finish, all eight rule settings. The five worked examples are named tests, 1000 random games check the invariants, 99 percent line coverage |
 
 ## 5. Scope of the first release
 
