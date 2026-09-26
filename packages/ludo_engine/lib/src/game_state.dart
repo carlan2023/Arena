@@ -84,6 +84,7 @@ class GameState {
     required this.sixesThisTurn,
     required this.sixesBeforeRoll,
     required List<PieceRef> joinedOwnBlockThisRoll,
+    required List<PieceRef> stoppedThisRoll,
     required List<PlayerColor> finishOrder,
     required List<PlayerColor> forfeited,
     required this.turnNumber,
@@ -95,6 +96,7 @@ class GameState {
        lastRoll = List.unmodifiable(lastRoll),
        remainingDice = List.unmodifiable(remainingDice),
        joinedOwnBlockThisRoll = List.unmodifiable(joinedOwnBlockThisRoll),
+       stoppedThisRoll = List.unmodifiable(stoppedThisRoll),
        finishOrder = List.unmodifiable(finishOrder),
        forfeited = List.unmodifiable(forfeited);
 
@@ -134,6 +136,7 @@ class GameState {
     int sixesThisTurn = 0,
     int sixesBeforeRoll = 0,
     List<PieceRef> joinedOwnBlockThisRoll = const [],
+    List<PieceRef> stoppedThisRoll = const [],
     List<PlayerColor> finishOrder = const [],
     List<PlayerColor> forfeited = const [],
     int turnNumber = 0,
@@ -162,6 +165,7 @@ class GameState {
       sixesThisTurn: sixesThisTurn,
       sixesBeforeRoll: sixesBeforeRoll,
       joinedOwnBlockThisRoll: joinedOwnBlockThisRoll,
+      stoppedThisRoll: stoppedThisRoll,
       finishOrder: finishOrder,
       forfeited: forfeited,
       turnNumber: turnNumber,
@@ -221,6 +225,10 @@ class GameState {
   /// Pieces that joined their own block during the current roll (R4).
   final List<PieceRef> joinedOwnBlockThisRoll;
 
+  /// Pieces that captured during the current roll; they get no further step
+  /// in it. Cleared when a new roll starts.
+  final List<PieceRef> stoppedThisRoll;
+
   /// Players who finished, in order.
   final List<PlayerColor> finishOrder;
 
@@ -263,6 +271,7 @@ class GameState {
     int? sixesThisTurn,
     int? sixesBeforeRoll,
     List<PieceRef>? joinedOwnBlockThisRoll,
+    List<PieceRef>? stoppedThisRoll,
     List<PlayerColor>? finishOrder,
     List<PlayerColor>? forfeited,
     int? turnNumber,
@@ -281,6 +290,7 @@ class GameState {
     sixesBeforeRoll: sixesBeforeRoll ?? this.sixesBeforeRoll,
     joinedOwnBlockThisRoll:
         joinedOwnBlockThisRoll ?? this.joinedOwnBlockThisRoll,
+    stoppedThisRoll: stoppedThisRoll ?? this.stoppedThisRoll,
     finishOrder: finishOrder ?? this.finishOrder,
     forfeited: forfeited ?? this.forfeited,
     turnNumber: turnNumber ?? this.turnNumber,
@@ -302,6 +312,7 @@ class GameState {
     'joinedOwnBlockThisRoll': [
       for (final p in joinedOwnBlockThisRoll) p.toJson(),
     ],
+    'stoppedThisRoll': [for (final p in stoppedThisRoll) p.toJson()],
     'finishOrder': [for (final c in finishOrder) c.name],
     'forfeited': [for (final c in forfeited) c.name],
     'turnNumber': turnNumber,
@@ -334,6 +345,10 @@ class GameState {
             for (final p in json['joinedOwnBlockThisRoll'] as List)
               PieceRef.fromJson((p as Map).cast<String, Object?>()),
           ],
+          stoppedThisRoll: [
+            for (final p in (json['stoppedThisRoll'] as List?) ?? const [])
+              PieceRef.fromJson((p as Map).cast<String, Object?>()),
+          ],
           finishOrder: colors(json['finishOrder']),
           forfeited: colors(json['forfeited']),
           turnNumber: json['turnNumber'] as int,
@@ -358,6 +373,7 @@ class GameState {
         !listEquals(other.lastRoll, lastRoll) ||
         !listEquals(other.remainingDice, remainingDice) ||
         !listEquals(other.joinedOwnBlockThisRoll, joinedOwnBlockThisRoll) ||
+        !listEquals(other.stoppedThisRoll, stoppedThisRoll) ||
         !listEquals(other.finishOrder, finishOrder) ||
         !listEquals(other.forfeited, forfeited)) {
       return false;
@@ -384,6 +400,7 @@ class GameState {
     Object.hashAll(lastRoll),
     Object.hashAll(remainingDice),
     Object.hashAll(joinedOwnBlockThisRoll),
+    Object.hashAll(stoppedThisRoll),
     Object.hashAll(finishOrder),
     Object.hashAll(forfeited),
   );

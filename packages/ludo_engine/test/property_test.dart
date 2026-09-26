@@ -61,6 +61,9 @@ bool _rights(GameState s, int size) {
 
 /// Independent re-check of one step's path and landing.
 void _checkStep(GameState s, Move m) {
+  for (final i in m.pieces) {
+    expect(s.stoppedThisRoll, isNot(contains(PieceRef(m.color, i))));
+  }
   if (m.kind == MoveKind.pass) {
     expect(s.rules.mustUseBothDice, isFalse);
     expect(s.remainingDice, hasLength(1));
@@ -80,6 +83,11 @@ void _checkStep(GameState s, Move m) {
     case MoveKind.advance:
       expect(s.remainingDice, contains(m.die));
       to = from + m.die;
+    case MoveKind.combined:
+      expect(s.remainingDice, hasLength(2));
+      expect([m.die, m.die2]..sort(), [...s.remainingDice]..sort());
+      expect(from, isNot(kAtHome));
+      to = from + m.die + m.die2;
     default:
       expect(s.remainingDice, hasLength(2));
       expect(s.remainingDice[0], s.remainingDice[1]);
@@ -144,6 +152,52 @@ void _checkInvariants(GameState s) {
   expect(GameState.fromJson(json), s);
 }
 
+/// Squares a combined move only crosses, with the pieces on them.
+List<PieceRef> _crossed(GameState s, Move m) {
+  if (m.kind != MoveKind.combined) return const [];
+  final from = s.pieces[m.color]![m.pieces.single];
+  final to = from + m.die + m.die2;
+  return [
+    for (var q = from + 1; q < to && q <= kLastTrackProgress; q++)
+      ...s.piecesOnSquare(trackSquare(m.color, q)!),
+  ];
+}
+
+/// Tracks capture stops independently of the engine: a piece that captured
+/// never moves again in the same roll.
+class _StopTracker {
+  int roll = -1;
+  final stopped = <PieceRef>{};
+
+  MoveResult play(GameState s, Move m) {
+    _checkStep(s, m);
+    if (s.rollNumber != roll) {
+      roll = s.rollNumber;
+      stopped.clear();
+    }
+    for (final i in m.pieces) {
+      expect(stopped, isNot(contains(PieceRef(m.color, i))));
+    }
+    final crossed = _crossed(s, m);
+    final r = applyMove(s, m);
+    for (final p in crossed) {
+      expect(
+        r.state.pieces[p.color]![p.index],
+        s.pieces[p.color]![p.index],
+        reason: 'combined $m captured a piece it only crossed',
+      );
+      expect(r.captured, isNot(contains(p)));
+    }
+    for (final p in r.captured) {
+      expect(r.state.pieces[p.color]![p.index], kAtHome);
+    }
+    if (r.captured.isNotEmpty) {
+      stopped.addAll([for (final i in m.pieces) PieceRef(m.color, i)]);
+    }
+    return r;
+  }
+}
+
 Set<GameState> _endStates(GameState s, List<List<Move>> seqs) {
   final out = <GameState>{};
   for (final seq in seqs) {
@@ -160,6 +214,7 @@ void main() {
   test('$_games random games keep every invariant and end', () {
     final r = Random(20260925);
     final lengths = <int>[];
+    final stops = _StopTracker();
     for (var g = 0; g < _games; g++) {
       var s = _randomGame(r);
       final forfeitAt = r.nextInt(10) == 0 ? r.nextInt(200) : -1;
@@ -201,17 +256,10 @@ void main() {
           // Alternate between playing a whole sequence and single steps.
           if (r.nextBool()) {
             for (final m in seqs[r.nextInt(seqs.length)]) {
-              _checkStep(s, m);
-              final res = applyMove(s, m);
-              for (final p in res.captured) {
-                expect(res.state.pieces[p.color]![p.index], kAtHome);
-              }
-              s = res.state;
+              s = stops.play(s, m).state;
             }
           } else {
-            final m = moves[r.nextInt(moves.length)];
-            _checkStep(s, m);
-            s = apply(s, m);
+            s = stops.play(s, moves[r.nextInt(moves.length)]).state;
           }
         }
         _checkInvariants(s);

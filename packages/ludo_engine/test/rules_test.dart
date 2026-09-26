@@ -420,7 +420,7 @@ void main() {
           mode: GameMode.teams,
           players: PlayerColor.values,
           pieces: {
-            red: [5, kAtHome, kAtHome, kAtHome],
+            red: [5, 30, kAtHome, kAtHome],
             yellow: [progressAt(yellow, 8), kAtHome, kAtHome, kAtHome],
           },
           rules: _defaults.copyWith(partnersFormJointBlocks: joint),
@@ -560,6 +560,201 @@ void main() {
       expect(r.rollEnded, isFalse);
       expect(legalMoves(r.state), contains(Move.release(yellow, 0)));
       expect(hasBlockRights(r.state, yellow, 2), isFalse);
+    });
+  });
+
+  group('D34 combined moves and capture stops', () {
+    test('combined cannot jump an opponent block', () {
+      final s = applyRoll(
+        position(
+          pieces: {
+            red: [10, kAtHome, kAtHome, kAtHome],
+            blue: [
+              progressAt(blue, 13),
+              progressAt(blue, 13),
+              kAtHome,
+              kAtHome,
+            ],
+          },
+        ),
+        2,
+        4,
+      );
+      expect(legalMoves(s), [Move.advance(red, 0, 2)]);
+    });
+
+    test('combined cannot jump an own block but may land on it', () {
+      final pieces = {
+        red: [10, 13, 13, kAtHome],
+      };
+      final jump = applyRoll(position(pieces: pieces), 2, 4);
+      expect(legalMoves(jump), isNot(contains(Move.combined(red, 0, 2, 4))));
+      final land = applyRoll(position(pieces: pieces), 1, 2);
+      expect(legalMoves(land), contains(Move.combined(red, 0, 1, 2)));
+      expect(apply(land, Move.combined(red, 0, 2, 1)).pieces[red], [
+        13,
+        13,
+        13,
+        kAtHome,
+      ]);
+    });
+
+    test('combined captures on its final square', () {
+      final s = applyRoll(
+        position(
+          pieces: {
+            red: [10, kAtHome, kAtHome, kAtHome],
+            blue: [
+              progressAt(blue, 12),
+              progressAt(blue, 16),
+              kAtHome,
+              kAtHome,
+            ],
+          },
+        ),
+        2,
+        4,
+      );
+      final r = applyMove(s, Move.combined(red, 0, 4, 2));
+      expect(r.captured, [const PieceRef(blue, 1)]);
+      expect(r.state.pieces[blue]![0], progressAt(blue, 12));
+    });
+
+    test('combined needs an exact finish', () {
+      final pieces = {
+        red: [50, kFinished, kFinished, kFinished],
+      };
+      final exact = applyRoll(position(pieces: pieces), 3, 4);
+      expect(legalMoves(exact), contains(Move.combined(red, 0, 3, 4)));
+      expect(applyMove(exact, Move.combined(red, 0, 3, 4)).newlyFinished, [
+        red,
+      ]);
+      final over = applyRoll(position(pieces: pieces), 4, 4);
+      expect(legalMoves(over), isNot(contains(Move.combined(red, 0, 4, 4))));
+    });
+
+    test('combined is not offered for a piece at home', () {
+      final s = applyRoll(position(), 6, 3);
+      expect(legalMoves(s).where((m) => m.kind == MoveKind.combined), isEmpty);
+    });
+
+    test('a release that captures stops the released piece', () {
+      final s = applyRoll(
+        position(
+          pieces: {
+            red: [kAtHome, 20, kAtHome, kAtHome],
+            blue: [progressAt(blue, 0), kAtHome, kAtHome, kAtHome],
+          },
+        ),
+        6,
+        3,
+      );
+      final r = applyMove(s, Move.release(red, 0));
+      expect(r.captured, [const PieceRef(blue, 0)]);
+      expect(r.state.stoppedThisRoll, [const PieceRef(red, 0)]);
+      expect(legalMoves(r.state), [Move.advance(red, 1, 3)]);
+    });
+
+    test('the stop is cleared on the extra roll after a double 6', () {
+      var s = applyRoll(
+        position(
+          pieces: {
+            red: [10, 20, kAtHome, kAtHome],
+            blue: [progressAt(blue, 16), kAtHome, kAtHome, kAtHome],
+          },
+        ),
+        6,
+        6,
+      );
+      final r = applyMove(s, Move.advance(red, 0, 6));
+      expect(r.captured, hasLength(1));
+      expect(legalMoves(r.state), isNot(contains(Move.advance(red, 0, 6))));
+      final end = applyMove(r.state, Move.advance(red, 1, 6));
+      expect(end.extraRoll, isTrue);
+      expect(end.state.stoppedThisRoll, isEmpty);
+      s = applyRoll(end.state, 2, 3);
+      expect(legalMoves(s), contains(Move.advance(red, 0, 2)));
+    });
+
+    test('capturing a block stops the piece', () {
+      final s = applyRoll(
+        position(
+          current: blue,
+          pieces: {
+            red: [10, 10, kAtHome, kAtHome],
+            blue: [progressAt(blue, 5), 30, kFinished, kFinished],
+          },
+          doubleSixStreak: 1,
+          sixesThisTurn: 2,
+          lastRoll: const [6, 6],
+        ),
+        5,
+        1,
+      );
+      final r = applyMove(s, Move.advance(blue, 0, 5));
+      expect(r.captured, hasLength(2));
+      expect(legalMoves(r.state), [Move.advance(blue, 1, 1)]);
+    });
+
+    test('a block move that captures stops the block', () {
+      final s = applyRoll(
+        position(
+          pieces: {
+            red: [10, 10, kAtHome, kAtHome],
+            blue: [progressAt(blue, 13), kAtHome, kAtHome, kAtHome],
+          },
+        ),
+        3,
+        3,
+      );
+      final r = applyMove(s, Move.blockAdvance(red, [0, 1], 3));
+      expect(r.captured, [const PieceRef(blue, 0)]);
+      expect(r.state.pieces[red], [13, 13, kAtHome, kAtHome]);
+    });
+
+    test('a forced capture still happens', () {
+      // The 6 and the combined 10 would pass a yellow block; only the 4 fits.
+      final s = applyRoll(
+        position(
+          mode: GameMode.freeForAll,
+          players: const [red, green, yellow],
+          pieces: {
+            red: [10, kAtHome, kAtHome, kAtHome],
+            green: [progressAt(green, 14), kAtHome, kAtHome, kAtHome],
+            yellow: [
+              progressAt(yellow, 15),
+              progressAt(yellow, 15),
+              kAtHome,
+              kAtHome,
+            ],
+          },
+        ),
+        4,
+        5,
+      );
+      expect(legalMoves(s), [Move.advance(red, 0, 4)]);
+      final r = applyMove(s, Move.advance(red, 0, 4));
+      expect(r.captured, [const PieceRef(green, 0)]);
+      expect(r.rollEnded, isTrue);
+    });
+
+    test('two single advances still reach the combined square', () {
+      final s = applyRoll(
+        position(
+          pieces: {
+            red: [10, kFinished, kFinished, kFinished],
+          },
+        ),
+        2,
+        3,
+      );
+      final moves = legalMoves(s);
+      expect(moves, contains(Move.combined(red, 0, 2, 3)));
+      expect(moves, contains(Move.advance(red, 0, 2)));
+      final seqs = legalSequences(s);
+      expect(seqs, [
+        [Move.combined(red, 0, 3, 2)],
+      ]);
     });
   });
 }

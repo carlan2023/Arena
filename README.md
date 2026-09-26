@@ -298,6 +298,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 26 Sep 2026 | M0.7 | Merged main. Web deploy now builds apps/mobile with the pinned Flutter version and uses the FIREBASE_SERVICE_ACCOUNT_ARENA_CDDFA secret. The two npm based Firebase workflows removed. Gradle raised to 8.14 so the release APK builds |
 | 26 Sep 2026 | M0.7 | Android build brought up to what Flutter now requires: Android Gradle Plugin 8.13, Kotlin 2.2.20, Java 17. The release APK builds again |
 | 26 Sep 2026 | M2.3 M2.12 | Guest mode. Free games, rooms and invite links work with no login; the app makes a guest account on the first online action. The phone login is only asked for paid tables and the wallet, and the server refuses those to guests |
+| 26 Sep 2026 | M1.2 M1.3 M1.9 | Capture fix (D34). A piece captures only where it stops. Moving one piece with both dice is now one move that passes single pieces without capturing them; a capture stops that piece for the roll and must not waste the other die. Found in play: a 4 and 4 move captured the piece it passed. New named engine tests for the case, app move selection updated |
 
 ## 5. Scope of the first release
 

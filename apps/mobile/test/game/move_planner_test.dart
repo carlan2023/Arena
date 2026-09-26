@@ -20,7 +20,7 @@ GameState position(
 );
 
 void main() {
-  test('worked example 1: release with the 6, both dice go to 3', () {
+  test('worked example 1: release with the 6; a release is never combined', () {
     final s = rolled(
       GameState.newGame(mode: GameMode.oneVsOne, players: [red, yellow]),
       6,
@@ -33,8 +33,7 @@ void main() {
     final both = options.where((o) => o.kind == OptionKind.both);
     expect(single.single.target, 0);
     expect(single.single.moves.single.kind, MoveKind.release);
-    expect(both.single.target, 3);
-    expect(both.single.dice, [6, 3]);
+    expect(both, isEmpty, reason: 'D34: release plus a move stays two steps');
   });
 
   test('play, undo and the step list', () {
@@ -79,25 +78,58 @@ void main() {
     expect(planner.steps, isEmpty, reason: 'play is all or nothing');
   });
 
-  test('both dice avoid an optional capture on the middle square (D24)', () {
-    // Red at 10 rolls 3 and 5. A single green piece sits on square 13.
-    final s = rolled(
-      position({
-        red: [10, kAtHome, kAtHome, kAtHome],
-        green: [0, kAtHome, kAtHome, kAtHome],
-      }),
-      3,
-      5,
+  group('D34: a single opponent 4 squares ahead, roll 4 and 4', () {
+    // Red piece 0 on square 10, a single yellow piece on square 14.
+    const yellowOn14 = 40;
+    GameState reported({required bool otherPieceCanMove}) => rolled(
+      position(
+        {
+          red: [10, otherPieceCanMove ? 30 : kAtHome, kAtHome, kAtHome],
+          yellow: [yellowOn14, kAtHome, kAtHome, kAtHome],
+        },
+        players: const [red, yellow],
+        mode: GameMode.oneVsOne,
+      ),
+      4,
+      4,
     );
-    final options = MovePlanner(s).optionsFor(const PieceRef(red, 0));
-    final both = options.where((o) => o.kind == OptionKind.both).single;
-    expect(both.target, 18);
-    expect(both.moves, [Move.advance(red, 0, 5), Move.advance(red, 0, 3)]);
-    final singles = {
-      for (final o in options)
-        if (o.kind == OptionKind.single) o.target,
-    };
-    expect(singles, {13, 15});
+
+    test('the both spot is one combined step that passes without capture', () {
+      final planner = MovePlanner(reported(otherPieceCanMove: true));
+      final both = planner
+          .optionsFor(const PieceRef(red, 0))
+          .where((o) => o.kind == OptionKind.both)
+          .single;
+      expect(both.target, 18);
+      expect(both.moves, [Move.combined(red, 0, 4, 4)]);
+      expect(both.dice, [4, 4]);
+      planner.play(both.moves);
+      expect(planner.results.single.captured, isEmpty);
+      expect(planner.current.pieces[yellow]![0], yellowOn14);
+    });
+
+    test('the single 4 captures, then only another piece takes the 4', () {
+      final planner = MovePlanner(reported(otherPieceCanMove: true));
+      final capture = planner
+          .optionsFor(const PieceRef(red, 0))
+          .where((o) => o.kind == OptionKind.single && o.target == 14)
+          .single;
+      planner.play(capture.moves);
+      expect(planner.results.single.captured, [const PieceRef(yellow, 0)]);
+      expect(planner.movablePieces, {const PieceRef(red, 1)});
+      expect(planner.optionsFor(const PieceRef(red, 0)), isEmpty);
+      expect(planner.canUndo, isTrue);
+      planner.undo();
+      expect(planner.current.pieces[yellow]![0], yellowOn14);
+    });
+
+    test('with no other piece to move, the capture spot is not offered', () {
+      final planner = MovePlanner(reported(otherPieceCanMove: false));
+      final options = planner.optionsFor(const PieceRef(red, 0));
+      expect(options.where((o) => o.target == 14), isEmpty);
+      expect(options.single.kind, OptionKind.both);
+      expect(planner.forcedRest, [Move.combined(red, 0, 4, 4)]);
+    });
   });
 
   test('forced rest when only one sequence remains', () {

@@ -47,6 +47,7 @@ void main() {
       Move.release(green, 1),
       Move.advance(red, 2, 5),
       Move.blockAdvance(blue, [3, 0], 4),
+      Move.combined(red, 1, 2, 5),
       Move.pass(yellow),
     ]) {
       final back = Move.fromJson(_wire(m.toJson()));
@@ -58,6 +59,35 @@ void main() {
       Move.blockAdvance(red, [2, 1], 3),
       Move.blockAdvance(red, [1, 2], 3),
     );
+  });
+
+  test('combined moves carry d2, other kinds omit it', () {
+    expect(Move.combined(red, 2, 4, 4).toJson(), {
+      'k': 'combined',
+      'c': 'red',
+      'p': [2],
+      'd': 4,
+      'd2': 4,
+    });
+    expect(Move.advance(red, 2, 4).toJson().containsKey('d2'), isFalse);
+    expect(Move.advance(red, 2, 4).die2, 0);
+    expect(Move.combined(red, 0, 2, 5), Move.combined(red, 0, 5, 2));
+    expect(Move.combined(red, 0, 2, 5).toString(), contains('5+2'));
+    expect(
+      Move.fromJson(const {
+        'k': 'advance',
+        'c': 'red',
+        'p': [0],
+        'd': 3,
+        'd2': 0,
+      }),
+      Move.advance(red, 0, 3),
+    );
+  });
+
+  test('old GameState JSON without stoppedThisRoll still parses', () {
+    final json = position().toJson()..remove('stoppedThisRoll');
+    expect(GameState.fromJson(json), position());
   });
 
   test('malformed moves throw FormatException', () {
@@ -162,6 +192,7 @@ void main() {
     expect(s == s.copyWith(turnNumber: 1), isFalse);
     expect(s == s.copyWith(pieces: {...s.pieces, red: allHome}), isFalse);
     expect(s == s.copyWith(forfeited: [blue]), isFalse);
+    expect(s == s.copyWith(stoppedThisRoll: [const PieceRef(red, 0)]), isFalse);
     expect(s.toString(), startsWith('GameState('));
     expect(
       () => GameState.fromJson(const {'mode': 'teams'}),

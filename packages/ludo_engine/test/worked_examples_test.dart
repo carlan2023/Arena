@@ -88,4 +88,60 @@ void main() {
     expect(r.state.pieces[yellow]![0], kFinished - 2);
     expect(r.rollEnded, isTrue);
   });
+
+  // A red piece 4 squares behind a single yellow piece, rolling 4 and 4.
+  GameState passPosition(List<int> otherRed) => applyRoll(
+    position(
+      mode: GameMode.oneVsOne,
+      players: const [red, yellow],
+      pieces: {
+        red: [10, ...otherRed],
+        yellow: [progressAt(yellow, 14), kAtHome, kAtHome, kAtHome],
+      },
+    ),
+    4,
+    4,
+  );
+
+  test(
+    'worked example 6: combined 4 and 4 passes a single piece without capturing',
+    () {
+      final s = passPosition(const [30, kAtHome, kAtHome]);
+      final r = applyMove(s, Move.combined(red, 0, 4, 4));
+      expect(r.captured, isEmpty);
+      expect(r.state.pieces[red]![0], 18);
+      expect(r.state.pieces[yellow]![0], progressAt(yellow, 14));
+      expect(r.rollEnded, isTrue);
+    },
+  );
+
+  test(
+    'worked example 7: capturing with one 4 sends the other 4 to another piece',
+    () {
+      final s = passPosition(const [30, kAtHome, kAtHome]);
+      final r = applyMove(s, Move.advance(red, 0, 4));
+      expect(r.captured, [const PieceRef(yellow, 0)]);
+      expect(r.rollEnded, isFalse);
+      expect(r.state.stoppedThisRoll, [const PieceRef(red, 0)]);
+      expect(legalMoves(r.state), [Move.advance(red, 1, 4)]);
+      final end = apply(r.state, Move.advance(red, 1, 4));
+      expect(end.pieces[red], [14, 34, kAtHome, kAtHome]);
+      expect(end.pieces[yellow], allHome);
+    },
+  );
+
+  test(
+    'worked example 8: a capture that would waste the other die is not allowed',
+    () {
+      final s = passPosition(const [kAtHome, kAtHome, kAtHome]);
+      expect(legalMoves(s), [Move.combined(red, 0, 4, 4)]);
+      expect(
+        () => applyMove(s, Move.advance(red, 0, 4)),
+        throwsA(isA<IllegalMoveException>()),
+      );
+      final end = apply(s, Move.combined(red, 0, 4, 4));
+      expect(end.pieces[red]![0], 18);
+      expect(end.pieces[yellow]![0], progressAt(yellow, 14));
+    },
+  );
 }

@@ -84,17 +84,29 @@ void main() {
     expect(sub.read().state.current, red);
   });
 
-  testWidgets('both dice in one tap', (tester) async {
-    final c = container(ScriptedDiceSource([(6, 3)]));
+  testWidgets('both dice in one tap pass a single piece (D34)', (tester) async {
+    // Red releases and walks to 3; yellow rolls 1 and 2 (no move); red then
+    // rolls 4 and 4 and plays both on one piece.
+    final c = container(ScriptedDiceSource([(6, 3), (1, 2), (4, 4)]));
     final provider = localGameProvider(twoHumans);
     final sub = c.listen(provider, (_, _) {});
     final ctrl = c.read(provider.notifier);
     ctrl.roll();
     ctrl.tapPieces([const PieceRef(red, 2)]);
-    ctrl.chooseOption(
-      sub.read().options.firstWhere((o) => o.kind == OptionKind.both),
-    );
+    ctrl.chooseOption(sub.read().options.single);
+    await tester.pump(const Duration(milliseconds: 500));
     expect(sub.read().state.pieces[red]![2], 3);
+    ctrl.roll();
+    expect(sub.read().state.current, red);
+
+    ctrl.roll();
+    ctrl.tapPieces([const PieceRef(red, 2)]);
+    final both = sub.read().options.firstWhere(
+      (o) => o.kind == OptionKind.both,
+    );
+    expect(both.moves.single.kind, MoveKind.combined);
+    ctrl.chooseOption(both);
+    expect(sub.read().state.pieces[red]![2], 11);
     expect(sub.read().state.current, yellow);
   });
 

@@ -28,6 +28,7 @@ GameState applyRoll(GameState state, int die1, int die2) {
     sixesThisTurn: state.sixesThisTurn + sixes,
     doubleSixStreak: streak,
     joinedOwnBlockThisRoll: const [],
+    stoppedThisRoll: const [],
     phase: TurnPhase.awaitingMove,
   );
   if (doubleSix && streak >= 3 && state.rules.tripleDoubleSixCancelsTurn) {
@@ -323,6 +324,7 @@ GameState _finishGame(GameState s) => s.copyWith(
   phase: TurnPhase.gameOver,
   remainingDice: const [],
   joinedOwnBlockThisRoll: const [],
+  stoppedThisRoll: const [],
 );
 
 /// Ends the current roll: game over, extra roll on a double 6, or next seat.
@@ -334,6 +336,7 @@ GameState _endRoll(GameState s) {
       phase: TurnPhase.awaitingRoll,
       remainingDice: const [],
       joinedOwnBlockThisRoll: const [],
+      stoppedThisRoll: const [],
     );
   }
   return _passTurn(s);
@@ -355,6 +358,7 @@ GameState _passTurn(GameState s) {
     phase: TurnPhase.awaitingRoll,
     remainingDice: const [],
     joinedOwnBlockThisRoll: const [],
+    stoppedThisRoll: const [],
     doubleSixStreak: 0,
     sixesThisTurn: 0,
     sixesBeforeRoll: 0,
@@ -363,7 +367,7 @@ GameState _passTurn(GameState s) {
 }
 
 int _diceUsed(Move m) => switch (m.kind) {
-  MoveKind.blockAdvance => 2,
+  MoveKind.blockAdvance || MoveKind.combined => 2,
   MoveKind.pass => 0,
   _ => 1,
 };
@@ -418,13 +422,26 @@ List<Move> _candidates(GameState s) {
   if (s.forfeited.contains(c)) return const [];
   final pieces = s.pieces[c]!;
   final out = <Move>[];
+  bool stopped(int i) => s.stoppedThisRoll.contains(PieceRef(c, i));
+
+  // Combined moves first, so legalSequences keeps them over the equivalent
+  // pair of single advances.
+  if (s.remainingDice.length == 2) {
+    final d1 = s.remainingDice[0], d2 = s.remainingDice[1];
+    for (var i = 0; i < kPiecesPerPlayer; i++) {
+      final p = pieces[i];
+      if (p == kAtHome || p == kFinished || stopped(i)) continue;
+      if (_pathOk(s, c, p, p + d1 + d2)) out.add(Move.combined(c, i, d1, d2));
+    }
+  }
+
   final dice = s.remainingDice.toSet().toList()..sort();
   for (final d in dice) {
     for (var i = 0; i < kPiecesPerPlayer; i++) {
       final p = pieces[i];
       if (p == kAtHome) {
         if (d == 6 && _pathOk(s, c, kAtHome, 0)) out.add(Move.release(c, i));
-      } else if (p < kFinished) {
+      } else if (p < kFinished && !stopped(i)) {
         if (!s.rules.canContinuePastOwnBlock &&
             s.joinedOwnBlockThisRoll.contains(PieceRef(c, i))) {
           continue;
@@ -470,6 +487,9 @@ _StepResult _step(GameState s, Move m) {
     case MoveKind.advance:
       dice.remove(m.die);
       target = from + m.die;
+    case MoveKind.combined:
+      dice.clear();
+      target = from + m.die + m.die2;
     case MoveKind.blockAdvance:
       dice.clear();
       target = from + (s.rules.blockMoveUsesSum ? 2 * m.die : m.die);
@@ -499,6 +519,11 @@ _StepResult _step(GameState s, Move m) {
     newPieces[c]![i] = target;
   }
 
+  var stopped = s.stoppedThisRoll;
+  if (captured.isNotEmpty) {
+    stopped = [...stopped, for (final i in m.pieces) PieceRef(c, i)];
+  }
+
   final newlyFinished = <PlayerColor>[];
   if (!s.finishOrder.contains(c) &&
       newPieces[c]!.every((p) => p == kFinished)) {
@@ -508,6 +533,7 @@ _StepResult _step(GameState s, Move m) {
     pieces: newPieces,
     remainingDice: dice,
     joinedOwnBlockThisRoll: joined,
+    stoppedThisRoll: stopped,
     finishOrder: [...s.finishOrder, ...newlyFinished],
   );
   return _StepResult(next, captured, newlyFinished);

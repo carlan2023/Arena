@@ -62,10 +62,11 @@ Offset _ghostPoint(MoveOption option, PieceRef piece) {
   return option.kind == OptionKind.block ? p.translate(0.18, -0.18) : p;
 }
 
-/// Short label for an option: "3", "3+5", "B4" for a block, "Pass".
+/// Short label for an option: "3", "5+3" for a combined move, "B4" for a
+/// block, "Pass".
 String optionLabel(MoveOption option) => switch (option.kind) {
   OptionKind.single => '${option.moves.single.die}',
-  OptionKind.both => option.moves.map((m) => m.die).join('+'),
+  OptionKind.both => option.dice.join('+'),
   OptionKind.block => 'B${option.moves.single.die}',
   OptionKind.pass => 'Pass',
 };

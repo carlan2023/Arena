@@ -2,11 +2,11 @@ import 'board.dart';
 import 'game_state.dart';
 import 'util.dart';
 
-enum MoveKind { release, advance, blockAdvance, pass }
+enum MoveKind { release, advance, combined, blockAdvance, pass }
 
-/// One step of a roll. A combined move is two [MoveKind.advance] steps.
+/// One step of a roll.
 class Move {
-  Move._(this.kind, this.color, List<int> pieces, this.die)
+  Move._(this.kind, this.color, List<int> pieces, this.die, [this.die2 = 0])
     : pieces = List.unmodifiable(pieces);
 
   /// Places a piece from home on its start square using a 6.
@@ -16,6 +16,18 @@ class Move {
   /// Moves one piece by one die value.
   Move.advance(PlayerColor color, int piece, int die)
     : this._(MoveKind.advance, color, [piece], die);
+
+  /// Moves one piece by both dice as one move. It stops only on its final
+  /// square and passes single pieces without capturing. The dice are stored
+  /// larger first, so their order does not matter.
+  Move.combined(PlayerColor color, int piece, int die1, int die2)
+    : this._(
+        MoveKind.combined,
+        color,
+        [piece],
+        die1 >= die2 ? die1 : die2,
+        die1 >= die2 ? die2 : die1,
+      );
 
   /// Moves every piece of a block together on a double. [die] is the face
   /// value. Piece indices are stored sorted, so order does not matter.
@@ -38,11 +50,15 @@ class Move {
   /// Die value used: 6 for release, the face value for blockAdvance, 0 for pass.
   final int die;
 
+  /// Second die of a combined move; 0 for every other kind.
+  final int die2;
+
   Map<String, Object?> toJson() => {
     'k': kind.name,
     'c': color.name,
     'p': List<int>.of(pieces),
     'd': die,
+    if (kind == MoveKind.combined) 'd2': die2,
   };
 
   /// Parses and shape checks a move. Malformed input throws [FormatException].
@@ -51,6 +67,10 @@ class Move {
     final color = enumByName(PlayerColor.values, json['c']);
     final pieces = intList(json['p']);
     final die = json['d'] as int;
+    final die2 = (json['d2'] as int?) ?? 0;
+    if (kind != MoveKind.combined && die2 != 0) {
+      throw const FormatException('d2 is only for combined moves');
+    }
     if (pieces.any((p) => p < 0 || p >= kPiecesPerPlayer)) {
       throw const FormatException('Move piece index out of range');
     }
@@ -61,6 +81,10 @@ class Move {
       case MoveKind.advance:
         if (pieces.length != 1 || die < 1 || die > 6) break;
         return Move.advance(color, pieces.single, die);
+      case MoveKind.combined:
+        if (pieces.length != 1 || die < 1 || die > 6) break;
+        if (die2 < 1 || die2 > 6) break;
+        return Move.combined(color, pieces.single, die, die2);
       case MoveKind.blockAdvance:
         if (pieces.length < 2 || die < 1 || die > 6) break;
         if (pieces.toSet().length != pieces.length) break;
@@ -78,14 +102,17 @@ class Move {
       other.kind == kind &&
       other.color == color &&
       other.die == die &&
+      other.die2 == die2 &&
       listEquals(other.pieces, pieces);
 
   @override
-  int get hashCode => Object.hash(kind, color, die, Object.hashAll(pieces));
+  int get hashCode =>
+      Object.hash(kind, color, die, die2, Object.hashAll(pieces));
 
   @override
   String toString() => switch (kind) {
     MoveKind.pass => 'pass(${color.name})',
+    MoveKind.combined => 'combined(${color.name} $pieces by $die+$die2)',
     _ => '${kind.name}(${color.name} $pieces by $die)',
   };
 }

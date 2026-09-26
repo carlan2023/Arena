@@ -15,7 +15,7 @@ class MoveOption {
 
   final OptionKind kind;
 
-  /// One step for single, block and pass; two steps for both.
+  /// The engine steps to play; one for every kind.
   final List<Move> moves;
 
   /// The piece the option was offered for (the first piece of a block).
@@ -28,7 +28,11 @@ class MoveOption {
   /// The dice this option uses, for labels.
   List<int> get dice => [
     for (final m in moves)
-      if (m.kind == MoveKind.blockAdvance) ...[m.die, m.die] else m.die,
+      ...switch (m.kind) {
+        MoveKind.blockAdvance => [m.die, m.die],
+        MoveKind.combined => [m.die, m.die2],
+        _ => [m.die],
+      },
   ];
 
   @override
@@ -78,8 +82,10 @@ class MovePlanner {
       for (final i in m.pieces) PieceRef(m.color, i),
   };
 
-  /// Every option for [piece]: each die alone, both dice together, and a
-  /// block move when [piece] is in a block that may move.
+  /// Every option for [piece]: each die alone, both dice together as one
+  /// combined move (D34: it passes single pieces without capturing), and a
+  /// block move when [piece] is in a block that may move. Each option is
+  /// one engine step.
   List<MoveOption> optionsFor(PieceRef piece) {
     final state = current;
     final options = <MoveOption>[];
@@ -89,9 +95,12 @@ class MovePlanner {
       if (m.color != piece.color || !m.pieces.contains(piece.index)) continue;
       final after = applyMove(state, m).state;
       final target = after.progressOf(piece);
-      final kind = m.kind == MoveKind.blockAdvance
-          ? OptionKind.block
-          : OptionKind.single;
+      final kind = switch (m.kind) {
+        MoveKind.blockAdvance => OptionKind.block,
+        MoveKind.combined => OptionKind.both,
+        MoveKind.release || MoveKind.advance => OptionKind.single,
+        MoveKind.pass => OptionKind.pass,
+      };
       if (seen.add((kind, target))) {
         options.add(
           MoveOption(kind: kind, moves: [m], piece: piece, target: target),
@@ -99,36 +108,6 @@ class MovePlanner {
       }
     }
 
-    // Both dice on this piece: the first two steps of a sequence both move
-    // it alone. If several orders reach the same square, prefer one without
-    // an optional capture on the middle square (decision D24).
-    final pairs = <int, (List<Move>, bool)>{};
-    for (final seq in sequences) {
-      if (seq.length < 2) continue;
-      final a = seq[0];
-      final b = seq[1];
-      if (!_movesOnly(a, piece) || !_movesOnly(b, piece)) continue;
-      final r1 = applyMove(state, a);
-      final r2 = applyMove(r1.state, b);
-      final target = r2.state.progressOf(piece);
-      final midCapture = r1.captured.isNotEmpty;
-      final existing = pairs[target];
-      if (existing == null || (existing.$2 && !midCapture)) {
-        pairs[target] = ([a, b], midCapture);
-      }
-    }
-    for (final entry in pairs.entries) {
-      if (seen.add((OptionKind.both, entry.key))) {
-        options.add(
-          MoveOption(
-            kind: OptionKind.both,
-            moves: entry.value.$1,
-            piece: piece,
-            target: entry.key,
-          ),
-        );
-      }
-    }
     return options;
   }
 
@@ -176,9 +155,4 @@ class MovePlanner {
   void undoAll() {
     while (undo()) {}
   }
-
-  static bool _movesOnly(Move m, PieceRef piece) =>
-      (m.kind == MoveKind.advance || m.kind == MoveKind.release) &&
-      m.color == piece.color &&
-      m.pieces.single == piece.index;
 }

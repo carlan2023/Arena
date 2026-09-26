@@ -109,11 +109,12 @@ void main() {
     );
     expect(actions.tapped, [const PieceRef(red, 2)]);
 
-    final both = view.options.firstWhere((o) => o.kind == OptionKind.both);
+    final release = view.options.single;
+    expect(release.kind, OptionKind.single);
     await tester.tapAt(
-      boardPoint(tester, piecePoint(const PieceRef(red, 0), both.target), 0),
+      boardPoint(tester, piecePoint(const PieceRef(red, 0), release.target), 0),
     );
-    expect(actions.chosen, same(both));
+    expect(actions.chosen, same(release));
   });
 
   testWidgets('the countdown ring shows for the active seat', (tester) async {

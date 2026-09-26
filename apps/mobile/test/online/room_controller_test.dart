@@ -101,10 +101,10 @@ void main() {
     expect(table.selectable, hasLength(4));
 
     h.ctrl.tapPieces([const PieceRef(red, 1)]);
-    final both = h.view.table!.options.firstWhere(
-      (o) => o.kind == OptionKind.both,
-    );
-    h.ctrl.chooseOption(both);
+    h.ctrl.chooseOption(h.view.table!.options.single);
+    expect(h.sent.whereType<MoveMessage>(), isEmpty, reason: 'a die is left');
+    // Only the released piece can use the 3: it plays after 0.5 s.
+    await h.tester.pump(const Duration(milliseconds: 500));
     final move = h.sent.last as MoveMessage;
     expect(move.moves, [Move.release(red, 1), Move.advance(red, 1, 3)]);
     // The board shows the planned result until the server confirms.
@@ -129,6 +129,40 @@ void main() {
     expect(h.view.table!.canRoll, isFalse);
   });
 
+  testRoom('a combined move is one element of the move list (D34)', (h) async {
+    await h.open();
+    // Red 4 behind a single yellow piece rolls 4 and 4.
+    final start = GameState.custom(
+      mode: GameMode.oneVsOne,
+      players: const [red, yellow],
+      pieces: {
+        red: [10, 30, kAtHome, kAtHome],
+        yellow: [40, kAtHome, kAtHome, kAtHome],
+      },
+    );
+    await h.receive(gameState(state: start));
+    await h.receive(dice(4, start, 4, 4));
+    h.ctrl.tapPieces([const PieceRef(red, 0)]);
+    final both = h.view.table!.options.firstWhere(
+      (o) => o.kind == OptionKind.both,
+    );
+    h.ctrl.chooseOption(both);
+    final move = h.sent.last as MoveMessage;
+    expect(move.moves, [Move.combined(red, 0, 4, 4)]);
+    expect(move.toJson()['moves'], [
+      {
+        'k': 'combined',
+        'c': 'red',
+        'p': [0],
+        'd': 4,
+        'd2': 4,
+      },
+    ]);
+    final table = h.view.table!;
+    expect(table.state.pieces[red]![0], 18);
+    expect(table.state.pieces[yellow]![0], 40, reason: 'passed, not taken');
+  });
+
   testRoom('a forced roll plays itself after half a second', (h) async {
     await h.open();
     final start = GameState.custom(
@@ -151,9 +185,9 @@ void main() {
     await h.receive(gameState(state: start));
     await h.receive(dice(4, start, 6, 3));
     h.ctrl.tapPieces([const PieceRef(red, 0)]);
-    h.ctrl.chooseOption(
-      h.view.table!.options.firstWhere((o) => o.kind == OptionKind.both),
-    );
+    h.ctrl.chooseOption(h.view.table!.options.single);
+    await h.tester.pump(const Duration(milliseconds: 500));
+    expect(h.sent.last, isA<MoveMessage>());
     await h.receive(
       const ErrorMessage(code: 'illegal_move', message: 'no', ref: 3),
     );

@@ -52,17 +52,20 @@ void main() {
 
   test('ghost labels and points', () {
     final s = applyRoll(
-      GameState.newGame(
+      GameState.custom(
         mode: GameMode.oneVsOne,
         players: const [red, PlayerColor.yellow],
+        pieces: {
+          red: [10, kAtHome, kAtHome, kAtHome],
+        },
       ),
-      6,
       3,
+      5,
     );
     const piece = PieceRef(red, 0);
     final options = MovePlanner(s).optionsFor(piece);
     final ghosts = ghostMarks(options);
-    expect(ghosts.map((g) => g.label), containsAll(['6', '6+3']));
+    expect(ghosts.map((g) => g.label).toSet(), {'3', '5', '5+3'});
     for (final g in ghosts) {
       expect(g.point, piecePoint(piece, options[g.id].target));
     }

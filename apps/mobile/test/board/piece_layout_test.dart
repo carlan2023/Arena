@@ -96,6 +96,23 @@ void main() {
       expect(m.pointsAt(0).keys, containsAll([walk.piece, fly.piece]));
     });
 
+    test('a combined move walks past a single piece without a capture', () {
+      // D34: red 4 behind a single yellow plays 4 and 4 as one move.
+      final m = planMotion(
+        {
+          red: [10, kAtHome, kAtHome, kAtHome],
+          PlayerColor.yellow: [40, kAtHome, kAtHome, kAtHome],
+        },
+        {
+          red: [18, kAtHome, kAtHome, kAtHome],
+          PlayerColor.yellow: [40, kAtHome, kAtHome, kAtHome],
+        },
+      );
+      expect(m.motions, hasLength(1));
+      expect(m.motions.single.waypoints, hasLength(9));
+      expect(m.motions.single.end, 1);
+    });
+
     test('long walks are capped', () {
       final m = planMotion(
         {

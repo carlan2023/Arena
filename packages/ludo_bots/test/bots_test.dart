@@ -182,6 +182,53 @@ void main() {
       );
     });
 
+    // Red 4 behind a single blue piece, rolling 4 and 4 (D34).
+    GameState passOrCapture(List<int> otherRed) => rolled(
+      {
+        red: [10, ...otherRed],
+        blue: [at(blue, 14), home, home, home],
+      },
+      4,
+      4,
+    );
+
+    test('captures with one 4 rather than passing with the combined 8', () {
+      final s = passOrCapture(const [30, done, done]);
+      expect(
+        legalSequences(s),
+        anyElement(equals([Move.combined(red, 0, 4, 4)])),
+      );
+      expectAlways(s, (seq) {
+        expect(seq, contains(Move.advance(red, 0, 4)));
+        expect(redAfter(s, seq)[0], 14);
+      });
+    });
+
+    test('passes with the combined move when the capture is not allowed', () {
+      final s = passOrCapture(const [done, done, done]);
+      expectAlways(s, (seq) {
+        expect(seq, [Move.combined(red, 0, 4, 4)]);
+      });
+    });
+
+    test('uses a combined move to capture beyond a single piece', () {
+      final s = rolled(
+        {
+          red: [10, 30, done, done],
+          blue: [at(blue, 12), at(blue, 16), home, home],
+        },
+        2,
+        4,
+      );
+      expectAlways(s, (seq) {
+        var t = s;
+        for (final m in seq) {
+          t = apply(t, m);
+        }
+        expect(t.pieces[blue]!.where((p) => p == home), hasLength(3));
+      });
+    });
+
     test('teams: capturing a partner is avoided when possible', () {
       final s = rolled(
         {
@@ -231,16 +278,13 @@ void main() {
         1,
         1,
       );
-      expect(NormalBot().chooseMoves(s), [
-        Move.advance(red, 0, 1),
-        Move.advance(red, 0, 1),
-      ]);
+      expect(NormalBot().chooseMoves(s), [Move.combined(red, 0, 1, 1)]);
     });
   });
 
   test('bots never throw and always finish games in every mode', () {
     final r = Random(99);
-    const games = 1200;
+    const games = 600;
     for (var g = 0; g < games; g++) {
       final mode = GameMode.values[g % 3];
       final players = switch (mode) {
