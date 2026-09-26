@@ -216,7 +216,7 @@ Done when two to four people can finish a game online from a shared WhatsApp lin
 |---|---|---|---|
 | M2.1 | Dart game server with WebSocket rooms | Done | 26 Sep 2026 |
 | M2.2 | Server dice with verifiable rolls | Done | 26 Sep 2026 |
-| M2.3 | Phone number login with OTP. Server side done: Firebase token check, fake login and session tokens | In progress | |
+| M2.3 | Phone number login with OTP. Blocked: the server checks Firebase tokens and the app has phone and code screens, but real SMS codes need a Firebase project (FIREBASE_PROJECT_ID and the app's google-services.json). Until then login runs in fake mode with code 123456 | Blocked | |
 | M2.4 | Create room, join by code or link | Done | 26 Sep 2026 |
 | M2.5 | Turn timer and automatic moves | Done | 26 Sep 2026 |
 | M2.6 | Reconnect within 60 seconds | Done | 26 Sep 2026 |
@@ -225,7 +225,7 @@ Done when two to four people can finish a game online from a shared WhatsApp lin
 | M2.9 | Double entry ledger for wallet balances and coins | Done | 25 Sep 2026 |
 | M2.10 | Deposits through MTN MoMo and Airtel Money in the sandbox. Blocked: the MTN and Airtel adapters and the fake are built and tested against mocked APIs, but a real sandbox deposit needs the developer accounts from M0.10 | Blocked | |
 | M2.11 | Payment callbacks that are safe to receive twice | Done | 25 Sep 2026 |
-| M2.12 | App connects to the server: login, create and join rooms, online game, reconnect | Not started | |
+| M2.12 | App connects to the server: login, create and join rooms, online game, reconnect | Done | 26 Sep 2026 |
 
 ### M3 Matchmaking, paid tables and polish
 
@@ -285,6 +285,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 26 Sep 2026 | M1.1 to M1.6 | Rules engine in packages/ludo_engine: two dice, blocks, block capture with sixes, exact finish, all eight rule settings. The five worked examples are named tests, 1000 random games check the invariants, 99 percent line coverage |
 | 26 Sep 2026 | M1.10 | Easy and normal bots in packages/ludo_bots, shared by the app and the server. The normal bot scores captures, blocks, progress, finishing and danger. 1200 bot games in every mode run clean |
 | 26 Sep 2026 | M2.1 M2.2 M2.4 M2.5 M2.6 M2.7 M2.8 | Game server in Dart: rooms over web sockets, server dice with a seed revealed at the end, room links, 20 second turn timer with bot moves, 60 second reconnect, match and move log in Postgres, live rooms in Redis. Integration test: two clients play a full game through the server with a disconnect and reconnect. docker compose runs the stack. Staging deploy written, blocked on hosting |
+| 26 Sep 2026 | M2.12 M2.3 | App talks to the server: phone and code login in fake mode, room links, lobby with WhatsApp share, online game on the same table as pass and play, reconnect with a banner, results. M2.3 marked Blocked on a Firebase project |
 | 26 Sep 2026 | M1.8 M1.9 M1.11 | Pieces with a shape per colour, blocks with a bar that cracks when it can be broken, move highlights and animations. Two dice tray with landing spots for each die and both, auto play of a forced sequence and undo. Pass and play with any seat set to a person or an easy or normal bot |
 | 26 Sep 2026 | M2.2 | Shared protocol package: message classes, verifiable dice from a server seed and client seeds, headless test client |
 
@@ -562,6 +563,18 @@ flutter run
 flutter test
 flutter build apk
 ```
+
+### Running the whole stack locally
+
+1. Start Postgres, Redis and the game server with `docker compose up --build` from the repo root. The server answers on http://localhost:8080/health. Without a server/.env it runs with fake login and fake payments. To change settings, copy server/.env.example to server/.env; every setting there says where its value comes from.
+2. Or run the server without Docker: `cd server && dart pub get && dart run bin/server.dart`. With no DATABASE_URL and REDIS_URL it keeps everything in memory.
+3. Run the app on an emulator with `cd apps/mobile && flutter run --dart-define=ARENA_SERVER_URL=http://10.0.2.2:8080`. On a real phone on the same network, use the computer's address instead of 10.0.2.2.
+4. Log in with any Ugandan number and the code 123456. Create a room, share the link or code, and join from a second phone or emulator.
+5. A test deposit: POST /v1/wallet/deposits with provider fake, then POST /v1/dev/payments/ID/confirm. GET /v1/wallet shows the balance.
+
+Tests for every package run with `dart test` in its folder, and `flutter test` in apps/mobile. Server tests that need Postgres and Redis run when DATABASE_URL and REDIS_URL are set.
+
+Contracts between the app, the engine, the server and the wallet are in docs/contracts. Decisions and the questions still open for Allan are in docs/decisions.md.
 
 ## 14. Other decisions still needed
 
