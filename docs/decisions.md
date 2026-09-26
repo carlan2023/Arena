@@ -37,6 +37,7 @@ Short records of decisions made while building. Rule defaults here are placehold
 | D31 | 26 Sep 2026 | A forfeit is broadcast as a full room_state. leave_room in the lobby sends no reply to the leaver. A lobby player who drops loses the seat after the 60 second grace | No dedicated protocol message is needed for M2 |
 | D32 | 26 Sep 2026 | With fake login and fake payments a missing SESSION_SECRET is made at random on start, so docker compose up works with no setup. Otherwise the server refuses to start without one | One command local stack |
 | D33 | 26 Sep 2026 | Guest mode: free play needs no login. The app starts a guest account on the first online action; the phone login is asked for only for paid tables and the wallet, which the server refuses to guests with phone_required | A login wall before a free game drives players away. Money needs a verified phone |
+| D34 | 26 Sep 2026 | A piece captures only where it stops. A combined move (both dice on one piece) is one move that passes single pieces without capturing. A capture stops that piece for the roll; using both dice comes before capturing; forced landings still capture; the stop lasts one roll, so the extra roll after a double 6 frees it; a release that captures also stops the piece | Decided by Allan after a report that a 4 and 4 move captured the piece it passed |
 
 ## Open for Allan
 

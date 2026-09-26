@@ -143,3 +143,7 @@ These settle the review round and override anything above that disagrees.
 3. Guests may create, join and play free rooms like anyone else.
 4. The wallet routes (`GET /v1/wallet`, `GET /v1/wallet/history`, `POST /v1/wallet/deposits`) and creating a room with a stake refuse guests with 403 `phone_required`. Joining a paid room will do the same when paid tables arrive in M3.9.
 5. The app never asks for a login before free play. It starts a guest session the first time the player goes online, and offers the phone login only for paid play and the wallet. A guest token the server no longer accepts is replaced by a new guest.
+
+## Amendment: combined moves (26 Sep 2026, D34)
+
+The `move` message may contain the new engine move kind `combined` (engine_api.md, D34), sent as one element: `{"k":"combined","c":"red","p":[2],"d":4,"d2":4}`. The server checks it with the engine like any other step.

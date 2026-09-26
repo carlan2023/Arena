@@ -45,7 +45,7 @@ The board has 52 track squares, a start square for each colour, and a home colum
 
 ### Dice
 
-Each turn a player rolls two dice. The values can be used on two different pieces or added together on one piece. With a 3 and a 5, you can move one piece 3 and another 5, or move one piece 8. A combined move is played as two steps, and each step must be legal on its own.
+Each turn a player rolls two dice. The values can be used on two different pieces or added together on one piece. With a 3 and a 5, you can move one piece 3 and another 5, or move one piece 8. A combined move is one move: the piece stops only on its final square. It passes over single pieces on the way without capturing them, and it cannot jump a block.
 
 A double 6 earns another roll after you have played your moves.
 
@@ -59,7 +59,9 @@ If a legal move exists, you must play it. Capturing is optional, so you can pick
 
 ### Capturing
 
-Landing on a single opponent piece sends it home. There is no bonus for a capture and there are no safe squares on the board, start squares included. The only protection is a block.
+Landing on a single opponent piece sends it home. A piece only captures where it stops, never on a square it passes. There is no bonus for a capture and there are no safe squares on the board, start squares included. The only protection is a block.
+
+A capture ends that piece's move for the roll, so the other die must be used on a different piece. Using the dice comes first: if capturing with one die would leave the other die with nowhere to go while another way of playing uses both dice, the capture is not allowed. If the only legal move lands on an opponent, the capture happens. A piece that captured may move again on the extra roll after a double 6. Releasing a piece onto a start square held by a single opponent captures it, and the released piece then stops for that roll.
 
 ### Blocks
 
@@ -96,6 +98,9 @@ Each decision has 20 seconds. When time runs out, the server plays the best lega
 | Same position, Blue rolls 6 and 6, then 5 and 2 | Blue lands on the block with the 5 and both red pieces go home |
 | Same position, Blue rolls 6 and 6, then 6 and 3 | Blue may move 6 past the block. Nothing is captured |
 | A yellow piece is 4 steps from the centre and rolls 5 and 2 | The 5 cannot move that piece. The 2 can |
+| A red piece is 4 squares behind a single yellow piece, rolls 4 and 4 and moves that piece 8 | Red passes the yellow piece. Nothing is captured |
+| Same position, red moves that piece 4 | The yellow piece goes home. Red's other 4 must be used on another piece |
+| Same position, red has no other piece that can move 4 | Red cannot capture. Red moves the piece 8 and passes the yellow piece |
 
 ### Rules still to decide
 

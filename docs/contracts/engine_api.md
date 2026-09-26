@@ -243,3 +243,17 @@ bool hasBlockRights(GameState state, PlayerColor mover, int blockSize);
 /// (or, under R2 false, may end with a pass).
 List<List<Move>> legalSequences(GameState state);
 ```
+
+## Amendment: combined moves and captures (26 Sep 2026, D34)
+
+Overrides anything above that disagrees. Rules text is README section 2, Capturing.
+
+1. New `MoveKind.combined`: one piece uses both dice as one move. `Move.combined(PlayerColor color, int piece, int die1, int die2)`. `Move` gains `final int die2` (0 for every other kind). JSON `{"k":"combined","c":"red","p":[2],"d":4,"d2":4}`; `d2` is omitted for other kinds and read as 0.
+2. A combined move is offered only while both dice of the roll remain, for a piece already on the board (a release plus a move stays two steps). It moves the piece die1 + die2 from its progress, needs an exact finish, and follows the same pass rules as any move over every square it crosses (no jumping opponent blocks without rights, never jumping its own block). Only the final square is a landing: single pieces on squares it crosses are not captured and R4 does not trigger there. The final square uses the normal landing rules (capture a single opponent, capture a block with rights, join an own block).
+3. Capture stop: a step that captures (release, advance, combined or blockAdvance) stops the moved pieces for the rest of that roll. `GameState` gains `final List<PieceRef> stoppedThisRoll`, cleared when a new roll starts, so a stopped piece may move again on the extra roll after a double 6. Stopped pieces get no further step this roll.
+4. R2 needs no change: because a capture stops the piece, the existing rule that the rest of the roll must still use the most dice possible already forbids a capture that wastes a die when another way uses both.
+5. Two single advances on the same piece remain legal when the first does not capture; they reach the same state as the combined move and legalSequences keeps only one of them.
+6. New named tests in test/worked_examples_test.dart:
+   `worked example 6: combined 4 and 4 passes a single piece without capturing`,
+   `worked example 7: capturing with one 4 sends the other 4 to another piece`,
+   `worked example 8: a capture that would waste the other die is not allowed`.
