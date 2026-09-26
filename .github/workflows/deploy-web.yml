@@ -1,0 +1,59 @@
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    name: Build and deploy to Firebase Hosting
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find app folder
+        run: |
+          if [ -f apps/mobile/pubspec.yaml ]; then echo "APP_DIR=apps/mobile" >> "$GITHUB_ENV"; else echo "APP_DIR=." >> "$GITHUB_ENV"; fi
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build web
+        run: |
+          cd "$APP_DIR"
+          flutter pub get
+          flutter build web --release --build-number=${{ github.run_number }}
+      - name: Deploy to live site (main)
+        if: env.FIREBASE_SA != '' && env.FIREBASE_PROJECT_ID != '' && github.event_name != 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          entryPoint: ${{ env.APP_DIR }}
+          channelId: live
+      - name: Deploy preview (pull request)
+        if: env.FIREBASE_SA != '' && env.FIREBASE_PROJECT_ID != '' && github.event_name == 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ vars.FIREBASE_PROJECT_ID }}
+          entryPoint: ${{ env.APP_DIR }}
+          expires: 7d
+      - name: No Firebase project configured
+        if: env.FIREBASE_SA == '' || env.FIREBASE_PROJECT_ID == ''
+        run: echo "::notice::Web build succeeded but was not deployed. Set the FIREBASE_SERVICE_ACCOUNT secret and FIREBASE_PROJECT_ID variable to deploy it."

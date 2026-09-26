@@ -185,7 +185,7 @@ Done when the rules are signed off, the known bugs are fixed, the repo is restru
 | M0.4 | Fix bugs B1 to B8. B1, B4, B5 and B6 are fixed | In progress | |
 | M0.5 | Choose the final brand name and Android package id | Not started | |
 | M0.6 | Restructure the repo into apps/mobile, packages/ludo_engine and server | Not started | |
-| M0.7 | Set up GitHub Actions for CI, Android releases and server deploys | In progress | |
+| M0.7 | Set up GitHub Actions for CI, Android releases, web previews and server deploys | In progress | |
 | M0.8 | Register the Google Play developer account | Not started | |
 | M0.9 | Wireframe the core screens in Figma, including the wallet | Not started | |
 | M0.10 | Choose the payment provider and open sandbox accounts | Not started | |
@@ -277,6 +277,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M0.1 | Paid play moved into the first release, wallet and paid table tasks added |
 | 25 Sep 2026 | M0.7 | CI and CD workflows written, Android release signing added to Gradle |
 | 25 Sep 2026 | M0.4 | Fixed the crash on a 6, wired login to the auth service, fixed the back link on register, replaced the counter test |
+| 26 Sep 2026 | M0.7 | Web deploy to Firebase Hosting added, with preview links on pull requests |
 
 ## 5. Scope of the first release
 
@@ -511,12 +512,13 @@ Commit messages start with the task ID when there is one, for example `M1.2 add 
 
 ### CI and CD
 
-Three GitHub Actions workflows live in .github/workflows. Each one checks which projects exist, so they work both before and after the repo is split into apps/mobile, packages/ludo_engine and server.
+Four GitHub Actions workflows live in .github/workflows. Each one checks which projects exist, so they work both before and after the repo is split into apps/mobile, packages/ludo_engine and server.
 
 | Workflow | Runs on | What it does |
 |---|---|---|
 | ci.yml | Every push to main and every pull request | Formats, analyzes and tests the app, the engine and the server. The engine fails below 95 percent coverage. Server tests run against real Postgres and Redis. Every push to main also builds a release APK and keeps it for 14 days in the run's artifacts, for testing on real phones |
 | release-android.yml | Tags starting with v, for example v0.1.0 | Builds the signed APK and app bundle, attaches the APK to a GitHub release for the website download, and uploads the bundle to Play internal testing once the Play secrets are set |
+| deploy-web.yml | Every push to main and every pull request | Builds the Flutter web version and deploys it to Firebase Hosting. Main updates the live link, each pull request gets its own preview link for 7 days. Open the link in Safari to try the app on an iPhone. It skips the deploy with a notice until the Firebase settings are set |
 | deploy-server.yml | After CI passes on main, and on tags | Builds the server Docker image, pushes it to GitHub's container registry and deploys it over SSH. Main goes to staging, tags go to production. It skips quietly until server/Dockerfile exists |
 
 Dependabot checks for package and action updates weekly.
@@ -535,6 +537,8 @@ Set these in GitHub under Settings, then Secrets and variables, then Actions. Cr
 | ANDROID_KEY_PASSWORD | Secret | production | The key password chosen when creating the key |
 | PLAY_SERVICE_ACCOUNT_JSON | Secret | production | A Google Cloud service account given release access in Play Console, under API access |
 | ANDROID_PACKAGE_ID | Variable | repository | The final package id, once decided in M0.5 |
+| FIREBASE_SERVICE_ACCOUNT | Secret | repository | Run `firebase init hosting:github` once, or create a service account with the Firebase Hosting Admin role and paste its JSON key |
+| FIREBASE_PROJECT_ID | Variable | repository | The project id shown in the Firebase console, for example arena-1a2b3 |
 | DEPLOY_HOST | Secret | staging and production | IP or host name of each server |
 | DEPLOY_USER | Secret | staging and production | The SSH user on that server |
 | DEPLOY_SSH_KEY | Secret | staging and production | A private key whose public half is in that user's authorized_keys |
