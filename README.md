@@ -215,7 +215,7 @@ Done when two to four people can finish a game online from a shared WhatsApp lin
 | ID | Task | Status | Date done |
 |---|---|---|---|
 | M2.1 | Dart game server with WebSocket rooms | Not started | |
-| M2.2 | Server dice with verifiable rolls | Not started | |
+| M2.2 | Server dice with verifiable rolls | In progress | |
 | M2.3 | Phone number login with OTP. Server side done: Firebase token check, fake login and session tokens | In progress | |
 | M2.4 | Create room, join by code or link | Not started | |
 | M2.5 | Turn timer and automatic moves | Not started | |
@@ -283,6 +283,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M1.7 | Board drawn with CustomPainter from a tested track geometry, rotatable so your home sits bottom left |
 | 25 Sep 2026 | M2.3 M2.9 M2.10 M2.11 | Login package with Firebase token check, fake login and session tokens. Double entry ledger in memory and Postgres. MTN, Airtel and fake payment providers. A callback received twice, or many at once, credits the wallet once |
 | 26 Sep 2026 | M1.1 to M1.6 | Rules engine in packages/ludo_engine: two dice, blocks, block capture with sixes, exact finish, all eight rule settings. The five worked examples are named tests, 1000 random games check the invariants, 99 percent line coverage |
+| 26 Sep 2026 | M2.2 | Shared protocol package: message classes, verifiable dice from a server seed and client seeds, headless test client |
 
 ## 5. Scope of the first release
 

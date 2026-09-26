@@ -1,0 +1,18 @@
+name: arena_protocol
+description: Wire format, fair dice and a headless client shared by the Arena app and server.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  crypto: ^3.0.6
+  http: ^1.2.0
+  ludo_engine:
+    path: ../ludo_engine
+  web_socket_channel: ^3.0.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0
