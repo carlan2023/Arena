@@ -1,0 +1,67 @@
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+env:
+  FLUTTER_VERSION: "3.47.5"
+  # The Firebase project from .firebaserc. A repository variable can override it.
+  FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID || 'arena-cddfa' }}
+
+jobs:
+  deploy:
+    name: Build and deploy to Firebase Hosting
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARENA_CDDFA }}
+      # Game server address baked into the web build. Must be https once the
+      # page is served from Firebase, or the browser blocks it.
+      ARENA_SERVER_URL: ${{ vars.ARENA_SERVER_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Build web
+        working-directory: apps/mobile
+        run: |
+          flutter pub get
+          args=()
+          if [ -n "$ARENA_SERVER_URL" ]; then args+=("--dart-define=ARENA_SERVER_URL=$ARENA_SERVER_URL"); fi
+          flutter build web --release --build-number=${{ github.run_number }} "${args[@]}"
+      - name: Deploy to live site (main)
+        if: env.FIREBASE_SA != '' && github.event_name != 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARENA_CDDFA }}
+          projectId: ${{ env.FIREBASE_PROJECT_ID }}
+          channelId: live
+      - name: Deploy preview (pull request from this repo)
+        if: >-
+          env.FIREBASE_SA != '' && github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARENA_CDDFA }}
+          projectId: ${{ env.FIREBASE_PROJECT_ID }}
+          expires: 7d
+      - name: No Firebase service account
+        if: env.FIREBASE_SA == ''
+        run: echo "::notice::Web build succeeded but was not deployed. Set the FIREBASE_SERVICE_ACCOUNT_ARENA_CDDFA secret to deploy it."
