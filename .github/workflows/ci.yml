@@ -28,7 +28,7 @@ jobs:
       has_dart: ${{ steps.find.outputs.has_dart }}
       has_mobile: ${{ steps.find.outputs.has_mobile }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: find
         run: .github/scripts/find_packages.sh >> "$GITHUB_OUTPUT"
 
@@ -74,11 +74,11 @@ jobs:
       # Only the engine has a coverage gate (README section 4, M1.6).
       COVERAGE_MIN: ${{ matrix.package == 'packages/ludo_engine' && '95' || '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: ${{ env.DART_VERSION }}
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.pub-cache
           key: pub-dart-${{ runner.os }}-${{ hashFiles('**/pubspec.yaml') }}
@@ -93,7 +93,7 @@ jobs:
           dart pub global activate coverage
           dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib
           "$GITHUB_WORKSPACE/.github/scripts/check_coverage.sh" coverage/lcov.info "$COVERAGE_MIN"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && env.COVERAGE_MIN != ''
         with:
           name: coverage-${{ strategy.job-index }}
@@ -110,8 +110,8 @@ jobs:
       run:
         working-directory: apps/mobile
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
@@ -127,7 +127,7 @@ jobs:
       - name: Build APK
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: flutter build apk --release --build-number=${{ github.run_number }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: arena-apk-${{ github.run_number }}
