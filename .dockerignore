@@ -1,0 +1,11 @@
+# Only the server and the packages it depends on are needed in the image.
+*
+!packages/ludo_engine
+!packages/ludo_bots
+!packages/arena_protocol
+!server
+**/.dart_tool
+**/build
+**/.env
+**/test
+server/deploy

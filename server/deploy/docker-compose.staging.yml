@@ -1,0 +1,44 @@
+# Staging overrides, used on the VM together with the root docker-compose.yml:
+#   docker compose -f docker-compose.yml -f server/deploy/docker-compose.staging.yml up -d --build
+# Values come from /opt/arena/.env (compose interpolation, see README.md here)
+# and server/.env (server settings). Neither is in git.
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in /opt/arena/.env}
+    ports: !reset []
+    restart: unless-stopped
+
+  redis:
+    ports: !reset []
+    restart: unless-stopped
+
+  server:
+    env_file:
+      - path: server/.env
+        required: true
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://arena:${POSTGRES_PASSWORD}@postgres:5432/arena}
+      REDIS_URL: redis://redis:6379
+      PUBLIC_BASE_URL: https://${DOMAIN:?set DOMAIN in /opt/arena/.env}
+      APP_VERSION: ${APP_VERSION:-dev}
+    ports: !reset []
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./server/deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - server
+
+volumes:
+  caddy_data:

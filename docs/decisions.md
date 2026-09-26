@@ -33,3 +33,6 @@ Short records of decisions made while building. Rule defaults here are placehold
 | D27 | 25 Sep 2026 | Engine Move constructors are not const (they copy and sort piece lists). PieceRef JSON is {"c": colour, "i": index}, and the protocol's captured list uses the same form. Engine adds copyWith helpers and progressOf | Engine checkpoint 2, additive changes |
 | D28 | 25 Sep 2026 | Payment callback routes accept PUT as well as POST | MTN sends callbacks as PUT in some environments |
 | D29 | 26 Sep 2026 | forfeit throws StateError once the game is over, and legalMoves returns an unmodifiable list cached per state | Engine final report, additive |
+| D30 | 26 Sep 2026 | With PAYMENTS_PROVIDER=fake every deposit goes to the fake provider. The dev confirm route only confirms the caller's own payment and also accepts a failed status | Local and test runs need no provider accounts |
+| D31 | 26 Sep 2026 | A forfeit is broadcast as a full room_state. leave_room in the lobby sends no reply to the leaver. A lobby player who drops loses the seat after the 60 second grace | No dedicated protocol message is needed for M2 |
+| D32 | 26 Sep 2026 | With fake login and fake payments a missing SESSION_SECRET is made at random on start, so docker compose up works with no setup. Otherwise the server refuses to start without one | One command local stack |

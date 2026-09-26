@@ -214,14 +214,14 @@ Done when two to four people can finish a game online from a shared WhatsApp lin
 
 | ID | Task | Status | Date done |
 |---|---|---|---|
-| M2.1 | Dart game server with WebSocket rooms | Not started | |
-| M2.2 | Server dice with verifiable rolls | In progress | |
+| M2.1 | Dart game server with WebSocket rooms | Done | 26 Sep 2026 |
+| M2.2 | Server dice with verifiable rolls | Done | 26 Sep 2026 |
 | M2.3 | Phone number login with OTP. Server side done: Firebase token check, fake login and session tokens | In progress | |
-| M2.4 | Create room, join by code or link | Not started | |
-| M2.5 | Turn timer and automatic moves | Not started | |
-| M2.6 | Reconnect within 60 seconds | Not started | |
-| M2.7 | Save match history and move log to Postgres | Not started | |
-| M2.8 | Staging server running | Not started | |
+| M2.4 | Create room, join by code or link | Done | 26 Sep 2026 |
+| M2.5 | Turn timer and automatic moves | Done | 26 Sep 2026 |
+| M2.6 | Reconnect within 60 seconds | Done | 26 Sep 2026 |
+| M2.7 | Save match history and move log to Postgres | Done | 26 Sep 2026 |
+| M2.8 | Staging server running. Blocked: the Dockerfile, compose files, HTTPS proxy config and deploy script are written and tested locally (server/deploy/README.md), but a staging machine needs a hosting account, a domain and the DEPLOY secrets in GitHub | Blocked | |
 | M2.9 | Double entry ledger for wallet balances and coins | Done | 25 Sep 2026 |
 | M2.10 | Deposits through MTN MoMo and Airtel Money in the sandbox. Blocked: the MTN and Airtel adapters and the fake are built and tested against mocked APIs, but a real sandbox deposit needs the developer accounts from M0.10 | Blocked | |
 | M2.11 | Payment callbacks that are safe to receive twice | Done | 25 Sep 2026 |
@@ -284,6 +284,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M2.3 M2.9 M2.10 M2.11 | Login package with Firebase token check, fake login and session tokens. Double entry ledger in memory and Postgres. MTN, Airtel and fake payment providers. A callback received twice, or many at once, credits the wallet once |
 | 26 Sep 2026 | M1.1 to M1.6 | Rules engine in packages/ludo_engine: two dice, blocks, block capture with sixes, exact finish, all eight rule settings. The five worked examples are named tests, 1000 random games check the invariants, 99 percent line coverage |
 | 26 Sep 2026 | M1.10 | Easy and normal bots in packages/ludo_bots, shared by the app and the server. The normal bot scores captures, blocks, progress, finishing and danger. 1200 bot games in every mode run clean |
+| 26 Sep 2026 | M2.1 M2.2 M2.4 M2.5 M2.6 M2.7 M2.8 | Game server in Dart: rooms over web sockets, server dice with a seed revealed at the end, room links, 20 second turn timer with bot moves, 60 second reconnect, match and move log in Postgres, live rooms in Redis. Integration test: two clients play a full game through the server with a disconnect and reconnect. docker compose runs the stack. Staging deploy written, blocked on hosting |
 | 26 Sep 2026 | M1.8 M1.9 M1.11 | Pieces with a shape per colour, blocks with a bar that cracks when it can be broken, move highlights and animations. Two dice tray with landing spots for each die and both, auto play of a forced sequence and undo. Pass and play with any seat set to a person or an easy or normal bot |
 | 26 Sep 2026 | M2.2 | Shared protocol package: message classes, verifiable dice from a server seed and client seeds, headless test client |
 
