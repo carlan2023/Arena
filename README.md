@@ -291,6 +291,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 25 Sep 2026 | M0.4 | Fixed the crash on a 6, wired login to the auth service, fixed the back link on register, replaced the counter test |
 | 26 Sep 2026 | M0.7 | Web deploy to Firebase Hosting added, with preview links on pull requests |
 | 26 Sep 2026 | M0.7 | Merged main. Web deploy now builds apps/mobile with the pinned Flutter version and uses the FIREBASE_SERVICE_ACCOUNT_ARENA_CDDFA secret. The two npm based Firebase workflows removed. Gradle raised to 8.14 so the release APK builds |
+| 26 Sep 2026 | M0.7 | Android build brought up to what Flutter now requires: Android Gradle Plugin 8.13, Kotlin 2.2.20, Java 17. The release APK builds again |
 
 ## 5. Scope of the first release
 
