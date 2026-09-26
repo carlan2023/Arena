@@ -32,3 +32,4 @@ Short records of decisions made while building. Rule defaults here are placehold
 | D26 | 25 Sep 2026 | Decisions are logged in this file rather than docs/adr | One short file is easier to keep current. README section 13 updated to match |
 | D27 | 25 Sep 2026 | Engine Move constructors are not const (they copy and sort piece lists). PieceRef JSON is {"c": colour, "i": index}, and the protocol's captured list uses the same form. Engine adds copyWith helpers and progressOf | Engine checkpoint 2, additive changes |
 | D28 | 25 Sep 2026 | Payment callback routes accept PUT as well as POST | MTN sends callbacks as PUT in some environments |
+| D29 | 26 Sep 2026 | forfeit throws StateError once the game is over, and legalMoves returns an unmodifiable list cached per state | Engine final report, additive |
