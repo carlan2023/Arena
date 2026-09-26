@@ -23,7 +23,7 @@ Only the owner edits files in a folder. Anything outside your folders goes to th
 | server/auth | arena_auth | http, crypto, postgres, pointycastle or asn1lib for RS256 |
 | server/wallet | arena_wallet | arena_auth (Migration type only), http, postgres, crypto |
 | server | arena_server | all of the above by path, shelf, shelf_router, shelf_web_socket, postgres, redis |
-| apps/mobile | arena | ludo_engine, ludo_bots, arena_protocol by path, flutter_riverpod, go_router, shared_preferences, share_plus, app_links |
+| apps/mobile | arena | ludo_engine, ludo_bots, arena_protocol by path, flutter_riverpod, go_router, shared_preferences, share_plus, app_links, http, web_socket_channel |
 
 Path dependencies only, no publishing. Every package has its own analysis_options.yaml that includes package:lints/recommended.yaml (package:flutter_lints for the app) and its own tests.
 
