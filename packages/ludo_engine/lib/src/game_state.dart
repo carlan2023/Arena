@@ -327,7 +327,7 @@ class GameState {
         ];
         final players = colors(json['players']);
         final rawPieces = (json['pieces'] as Map).cast<String, Object?>();
-        return GameState.custom(
+        final state = GameState.custom(
           rules: RulesConfig.fromJson(
             (json['rules'] as Map).cast<String, Object?>(),
           ),
@@ -354,7 +354,40 @@ class GameState {
           turnNumber: json['turnNumber'] as int,
           rollNumber: json['rollNumber'] as int,
         );
+        _checkConsistent(state);
+        return state;
       });
+
+  /// Rejects snapshots no engine call could have produced in shape: unseated
+  /// colours, impossible dice, negative counters.
+  static void _checkConsistent(GameState s) {
+    void fail(String why) =>
+        throw FormatException('Inconsistent GameState: $why');
+    if (s.players.isEmpty || s.players.toSet().length != s.players.length) {
+      fail('players');
+    }
+    if (!s.players.contains(s.current)) fail('current is not seated');
+    for (final c in [...s.finishOrder, ...s.forfeited]) {
+      if (!s.players.contains(c)) fail('${c.name} is not seated');
+    }
+    for (final p in [...s.joinedOwnBlockThisRoll, ...s.stoppedThisRoll]) {
+      if (!s.players.contains(p.color)) fail('$p is not seated');
+    }
+    if (s.lastRoll.isNotEmpty && s.lastRoll.length != 2) fail('lastRoll');
+    if (s.remainingDice.length > 2) fail('remainingDice');
+    if ([...s.lastRoll, ...s.remainingDice].any((d) => d < 1 || d > 6)) {
+      fail('die value');
+    }
+    if ([
+      s.doubleSixStreak,
+      s.sixesThisTurn,
+      s.sixesBeforeRoll,
+      s.turnNumber,
+      s.rollNumber,
+    ].any((n) => n < 0)) {
+      fail('negative counter');
+    }
+  }
 
   @override
   bool operator ==(Object other) {

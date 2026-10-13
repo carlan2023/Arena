@@ -85,6 +85,27 @@ void main() {
     );
   });
 
+  test('inconsistent GameState JSON throws FormatException', () {
+    final good = position().toJson();
+    for (final change in <void Function(Map<String, Object?>)>[
+      (j) => j['current'] = 'green',
+      (j) => j['players'] = <String>[],
+      (j) => j['finishOrder'] = ['yellow'],
+      (j) => j['forfeited'] = ['green'],
+      (j) => j['stoppedThisRoll'] = [
+        {'c': 'green', 'i': 0},
+      ],
+      (j) => j['lastRoll'] = [6],
+      (j) => j['remainingDice'] = [1, 2, 3],
+      (j) => j['remainingDice'] = [0],
+      (j) => j['turnNumber'] = -1,
+    ]) {
+      final json = Map<String, Object?>.of(good);
+      change(json);
+      expect(() => GameState.fromJson(json), throwsFormatException);
+    }
+  });
+
   test('old GameState JSON without stoppedThisRoll still parses', () {
     final json = position().toJson()..remove('stoppedThisRoll');
     expect(GameState.fromJson(json), position());

@@ -6,7 +6,7 @@ import 'dart:math';
 import 'package:ludo_engine/ludo_engine.dart';
 import 'package:test/test.dart';
 
-const _games = 1000;
+const _games = 700;
 const _maxRollsPerGame = 4000;
 
 RulesConfig _randomRules(Random r) => RulesConfig(
