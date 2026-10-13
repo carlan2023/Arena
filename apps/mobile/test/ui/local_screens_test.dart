@@ -54,10 +54,7 @@ void main() {
           expect(box.right, lessThanOrEqualTo(width), reason: '$mode $c');
           expect(box.left, greaterThanOrEqualTo(0), reason: '$mode $c');
         }
-        expect(
-          tester.getRect(find.text(mode)).right,
-          lessThanOrEqualTo(width),
-        );
+        expect(tester.getRect(find.text(mode)).right, lessThanOrEqualTo(width));
       }
     });
   }
