@@ -5,6 +5,7 @@ import 'package:ludo_engine/ludo_engine.dart';
 
 import '../online/api.dart';
 import '../online/auth.dart';
+import '../online/coins.dart';
 import '../online/config.dart';
 import 'avatar.dart';
 
@@ -117,6 +118,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   : 'Free games need no sign up. Just play.',
               style: text.bodyMedium,
             ),
+            if (session != null) ...[
+              const SizedBox(height: 16),
+              const _CoinsCard(),
+            ],
             const SizedBox(height: 24),
             Row(
               children: [
@@ -175,6 +180,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The coin balance and the daily reward (M3.4, D36).
+class _CoinsCard extends ConsumerStatefulWidget {
+  const _CoinsCard();
+
+  @override
+  ConsumerState<_CoinsCard> createState() => _CoinsCardState();
+}
+
+class _CoinsCardState extends ConsumerState<_CoinsCard> {
+  bool _claiming = false;
+
+  Future<void> _claim() async {
+    setState(() => _claiming = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final grant = await ref.read(coinsProvider.notifier).claimDaily();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            grant == null
+                ? 'Today\'s reward was already claimed'
+                : '+${grant.granted} coins. Day ${grant.streak} in a row!',
+          ),
+        ),
+      );
+    } on Object {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not claim the reward. Try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _claiming = false);
+    }
+  }
+
+  static String _wait(Duration d) {
+    if (d.inHours >= 1) return '${d.inHours} h ${d.inMinutes % 60} min';
+    return '${d.inMinutes.clamp(1, 59)} min';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final coins = ref.watch(coinsProvider).value;
+    if (coins == null) return const SizedBox.shrink();
+    final daily = coins.dailyReward;
+    final text = Theme.of(context).textTheme;
+    return Card(
+      key: const Key('coins-card'),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Row(
+          children: [
+            Icon(Icons.toll, color: Colors.amber.shade700, size: 32),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${coins.balance} coins',
+                    key: const Key('coins-balance'),
+                    style: text.titleMedium,
+                  ),
+                  Text(
+                    daily.available
+                        ? 'Daily reward: ${daily.amount} coins'
+                        : 'Next reward in '
+                              '${_wait(daily.nextAt.difference(DateTime.now()))}',
+                    key: const Key('daily-status'),
+                    style: text.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            if (daily.available)
+              FilledButton(
+                key: const Key('claim-daily'),
+                onPressed: _claiming ? null : _claim,
+                child: const Text('Claim'),
+              ),
           ],
         ),
       ),

@@ -14,6 +14,10 @@ const session = Session(token: 'tok-1', user: me);
 
 class FakeApi implements ArenaApi {
   final calls = <String>[];
+
+  /// [calls] without the coin balance reads the home screen makes.
+  List<String> get actions =>
+      calls.where((c) => !c.startsWith('coins ')).toList();
   UserView user = const UserView(
     id: 'u1',
     phone: '+256772000001',
@@ -68,6 +72,45 @@ class FakeApi implements ArenaApi {
       phone: user.phone,
       displayName: name ?? user.displayName,
       avatar: avatar ?? user.avatar,
+    );
+  }
+
+  CoinsView coinsView = CoinsView(
+    balance: 500,
+    dailyReward: DailyRewardView(
+      available: true,
+      amount: 100,
+      streak: 0,
+      nextAt: DateTime.utc(2026, 10, 13),
+    ),
+  );
+
+  @override
+  Future<CoinsView> coins(String token) async {
+    calls.add('coins $token');
+    if (failWith case final e?) throw e;
+    return coinsView;
+  }
+
+  @override
+  Future<CoinGrantView> claimDailyReward(String token) async {
+    calls.add('daily $token');
+    final d = coinsView.dailyReward;
+    if (!d.available) throw ApiError(409, 'already_claimed', 'no');
+    final balance = coinsView.balance + d.amount;
+    coinsView = CoinsView(
+      balance: balance,
+      dailyReward: DailyRewardView(
+        available: false,
+        amount: d.amount + 20,
+        streak: d.streak + 1,
+        nextAt: DateTime.now().add(const Duration(hours: 5, minutes: 30)),
+      ),
+    );
+    return CoinGrantView(
+      balance: balance,
+      granted: d.amount,
+      streak: d.streak + 1,
     );
   }
 
