@@ -13,6 +13,8 @@ void main() {
     expect(c.reconnectGrace, const Duration(seconds: 60));
     expect(c.botDelay, const Duration(milliseconds: 800));
     expect(c.roomIdle, const Duration(minutes: 30));
+    expect(c.botFill, const Duration(seconds: 20));
+    expect(c.paidQueueTimeout, const Duration(seconds: 60));
     expect(c.appVersion, 'dev');
     expect(c.databaseUrl, isNull);
     expect(c.paidTablesEnabled, isFalse);
@@ -35,6 +37,8 @@ void main() {
       'RECONNECT_GRACE_SECONDS': '10',
       'BOT_DELAY_MS': '100',
       'ROOM_IDLE_MINUTES': '2',
+      'BOT_FILL_SECONDS': '8',
+      'PAID_QUEUE_SECONDS': '90',
       'APP_VERSION': '1.2.3',
       'AUTH_PROVIDER': 'firebase',
       'FIREBASE_PROJECT_ID': 'arena-ug',
@@ -49,6 +53,8 @@ void main() {
     expect(c.publicBaseUrl, 'https://arena.example');
     expect(c.turnTimeout, const Duration(seconds: 5));
     expect(c.botDelay, const Duration(milliseconds: 100));
+    expect(c.botFill, const Duration(seconds: 8));
+    expect(c.paidQueueTimeout, const Duration(seconds: 90));
     expect(c.appVersion, '1.2.3');
     expect(c.mtn!.currency, 'EUR');
     expect(

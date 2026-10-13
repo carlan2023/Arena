@@ -42,11 +42,21 @@ class MatchedPlayer {
     required this.userId,
     required this.displayName,
     this.clientSeed,
+    this.isBot = false,
   });
+
+  /// A bot for an empty seat. Bots have no account; [userId] is only unique
+  /// within the room.
+  const MatchedPlayer.bot(int n)
+    : userId = 'bot:$n',
+      displayName = 'Bot ${n + 1}',
+      clientSeed = null,
+      isBot = true;
 
   final String userId;
   final String displayName;
   final String? clientSeed;
+  final bool isBot;
 }
 
 class _Waiting {
@@ -56,6 +66,9 @@ class _Waiting {
   final QueueKey key;
   final String? clientSeed;
   final int joinedAtMs;
+
+  /// Bot fill for free and coin queues, the time out for paid ones.
+  TimerHandle? timer;
 
   String get userId => conn.userId;
 }
@@ -74,12 +87,23 @@ abstract interface class MatchHost {
 /// Quick match queues. Players wait per [QueueKey]; when a queue holds
 /// enough players for a game, the first of them are seated in a new room
 /// that starts at once, and each gets queue_status matched with its code.
-/// Queues live in memory only: after a restart the app joins again.
+/// In free and coin queues a player who has waited [botFill] is seated with
+/// the players behind them and bots in the empty seats. Paid queues never
+/// get bots; a paid player who has waited [paidTimeout] gets queue_status
+/// timeout. Queues live in memory only: after a restart the app joins again.
 class Matchmaker {
-  Matchmaker({required this.clock, required this.host, this.allowTable});
+  Matchmaker({
+    required this.clock,
+    required this.host,
+    this.allowTable,
+    this.botFill = const Duration(seconds: 20),
+    this.paidTimeout = const Duration(seconds: 60),
+  });
 
   final Clock clock;
   final MatchHost host;
+  final Duration botFill;
+  final Duration paidTimeout;
 
   /// Returns an error code and message when a table is not open, or null.
   /// Without it only free tables are open.
@@ -152,6 +176,9 @@ class Matchmaker {
       }
     }
     final w = _Waiting(conn, key, seed, clock.nowMs());
+    w.timer = key.isPaid
+        ? clock.schedule(paidTimeout, () => _timedOut(w))
+        : clock.schedule(botFill, () => _fill(w));
     _byUser[w.userId] = w;
     final queue = _queues.putIfAbsent(key, () => []);
     queue.add(w);
@@ -178,6 +205,8 @@ class Matchmaker {
   }
 
   void _remove(_Waiting w) {
+    w.timer?.cancel();
+    w.timer = null;
     if (_byUser[w.userId] == w) _byUser.remove(w.userId);
     final queue = _queues[w.key];
     queue?.remove(w);
@@ -189,23 +218,48 @@ class Matchmaker {
     final queue = _queues[key];
     while (queue != null && queue.length >= key.seats) {
       final group = queue.sublist(0, key.seats);
-      // Someone who took a seat by code since queueing cannot play twice.
-      final busy = [
-        for (final w in group)
-          if (host.activeRoomOf(w.userId) != null) w,
-      ];
-      if (busy.isNotEmpty) {
-        for (final w in busy) {
-          _remove(w);
-          _send(w, QueueState.cancelled);
-        }
-        continue;
-      }
+      if (_dropBusy(group)) continue;
       _startGroup(key, group);
     }
   }
 
-  /// Seats [group] in a new game. Bot seat filling adds bots to the list.
+  /// Removes players who took a seat by code since queueing, since nobody
+  /// plays two games at once. Returns true if anyone was removed.
+  bool _dropBusy(List<_Waiting> group) {
+    final busy = [
+      for (final w in group)
+        if (host.activeRoomOf(w.userId) != null) w,
+    ];
+    for (final w in busy) {
+      _remove(w);
+      _send(w, QueueState.cancelled);
+    }
+    return busy.isNotEmpty;
+  }
+
+  /// [w] has waited botFill: seat them with whoever is behind them, and bots.
+  void _fill(_Waiting w) {
+    w.timer = null;
+    if (_byUser[w.userId] != w) return;
+    final queue = _queues[w.key]!;
+    var group = queue.take(w.key.seats).toList();
+    if (_dropBusy(group)) {
+      if (_byUser[w.userId] != w) return _broadcastWaiting(w.key);
+      group = queue.take(w.key.seats).toList();
+    }
+    _startGroup(w.key, group);
+    _broadcastWaiting(w.key);
+  }
+
+  void _timedOut(_Waiting w) {
+    w.timer = null;
+    if (_byUser[w.userId] != w) return;
+    _remove(w);
+    _send(w, QueueState.timeout);
+    _broadcastWaiting(w.key);
+  }
+
+  /// Seats [group] in a new game, with bots in any seats left over.
   void _startGroup(QueueKey key, List<_Waiting> group) {
     for (final w in group) {
       _remove(w);
@@ -217,6 +271,7 @@ class Matchmaker {
           displayName: w.conn.displayName,
           clientSeed: w.clientSeed,
         ),
+      for (var i = group.length; i < key.seats; i++) MatchedPlayer.bot(i),
     ]);
     for (final w in group) {
       _send(w, QueueState.matched, roomCode: code, playersFound: key.seats);
@@ -247,8 +302,21 @@ class Matchmaker {
         playersFound: playersFound ?? waiting(w.key),
         playersNeeded: w.key.seats,
         roomCode: roomCode,
+        botFillAt: state == QueueState.waiting ? _botFillAt(w) : null,
         serverNow: clock.nowMs(),
       ),
     );
+  }
+
+  /// When bots fill [w]'s game. Players are seated from the front of the
+  /// queue in groups of a game's size, and each group fills when its first
+  /// player has waited botFill.
+  int? _botFillAt(_Waiting w) {
+    if (w.key.isPaid) return null;
+    final queue = _queues[w.key];
+    final i = queue?.indexOf(w) ?? -1;
+    if (i < 0) return null;
+    final first = queue![i - i % w.key.seats];
+    return first.joinedAtMs + botFill.inMilliseconds;
   }
 }
