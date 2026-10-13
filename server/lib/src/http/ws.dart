@@ -9,6 +9,7 @@ import '../clock.dart';
 import '../rate_limit.dart';
 import '../rooms/room.dart';
 import '../rooms/room_manager.dart';
+import 'cors.dart';
 
 /// Largest accepted frame. A full move list is well under 1 KB.
 const int kMaxFrameLength = 16 * 1024;
@@ -22,8 +23,16 @@ Handler webSocketRoute({
   required Future<SocketUser?> Function(String token) authenticate,
   required Clock clock,
   required int messagesPerSecond,
+  List<String>? allowedOrigins,
 }) {
   return (Request req) async {
+    // Browsers send Origin on web sockets; the app does not.
+    final origin = req.headers['origin'];
+    if (origin != null &&
+        allowedOrigins != null &&
+        !originAllowed(origin, allowedOrigins)) {
+      return Response.forbidden('origin not allowed');
+    }
     final token = req.url.queryParameters['token'];
     final user = token == null ? null : await authenticate(token);
     if (user == null) {

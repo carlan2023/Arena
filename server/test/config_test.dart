@@ -16,6 +16,13 @@ void main() {
     expect(c.appVersion, 'dev');
     expect(c.databaseUrl, isNull);
     expect(c.paidTablesEnabled, isFalse);
+    expect(c.allowedOrigins, contains('https://arena-cddfa.web.app'));
+    expect(
+      ServerConfig.fromEnvironment({
+        'ALLOWED_ORIGINS': 'https://a.example, https://b.example',
+      }).allowedOrigins,
+      ['https://a.example', 'https://b.example'],
+    );
   });
 
   test('reads every setting', () {

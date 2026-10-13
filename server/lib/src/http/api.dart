@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show HttpConnectionInfo;
+import 'dart:io' show HttpConnectionInfo, InternetAddress, InternetAddressType;
 
 import 'package:arena_auth/arena_auth.dart';
 import 'package:arena_protocol/arena_protocol.dart';
@@ -172,13 +172,31 @@ class Api {
     return {'sessionToken': token, 'user': _user(user)};
   }
 
+  /// The client's address. X-Forwarded-For is trusted only when the direct
+  /// peer is a local or private address (our own proxy), and then only its
+  /// last hop, which that proxy added; earlier hops are client supplied.
   String _clientAddress(Request req) {
-    final forwarded = req.headers['x-forwarded-for'];
-    if (forwarded != null && forwarded.isNotEmpty) {
-      return forwarded.split(',').first.trim();
-    }
     final info = req.context['shelf.io.connection_info'];
-    return info is HttpConnectionInfo ? info.remoteAddress.address : 'unknown';
+    final peer = info is HttpConnectionInfo ? info.remoteAddress : null;
+    final forwarded = req.headers['x-forwarded-for'];
+    if (peer != null &&
+        _isProxyAddress(peer) &&
+        forwarded != null &&
+        forwarded.trim().isNotEmpty) {
+      return forwarded.split(',').last.trim();
+    }
+    return peer?.address ?? 'unknown';
+  }
+
+  static bool _isProxyAddress(InternetAddress a) {
+    if (a.isLoopback || a.isLinkLocal) return true;
+    final b = a.rawAddress;
+    if (a.type == InternetAddressType.IPv4) {
+      return b[0] == 10 ||
+          (b[0] == 172 && b[1] >= 16 && b[1] < 32) ||
+          (b[0] == 192 && b[1] == 168);
+    }
+    return (b[0] & 0xfe) == 0xfc; // IPv6 unique local
   }
 
   /// Paid play and the wallet need a verified phone (D33).

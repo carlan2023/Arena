@@ -5,6 +5,8 @@ library;
 import 'dart:convert';
 import 'dart:math';
 
+import 'src/http/cors.dart' show kDefaultAllowedOrigins;
+
 class ConfigException implements Exception {
   ConfigException(this.message);
   final String message;
@@ -73,6 +75,7 @@ class ServerConfig {
     this.guestsPerHour = 30,
     this.wsMessagesPerSecond = 20,
     this.paidTablesEnabled = false,
+    this.allowedOrigins = kDefaultAllowedOrigins,
   }) {
     _validate();
   }
@@ -201,6 +204,12 @@ class ServerConfig {
       roomCreatesPerHour: intOf('ROOM_CREATES_PER_HOUR', 10),
       guestsPerHour: intOf('GUESTS_PER_HOUR', 30),
       wsMessagesPerSecond: intOf('WS_MESSAGES_PER_SECOND', 20),
+      allowedOrigins: opt('ALLOWED_ORIGINS') == null
+          ? kDefaultAllowedOrigins
+          : [
+              for (final o in opt('ALLOWED_ORIGINS')!.split(','))
+                if (o.trim().isNotEmpty) o.trim(),
+            ],
     );
   }
 
@@ -246,6 +255,9 @@ class ServerConfig {
 
   /// Paid tables are refused with paid_tables_disabled until M3.9.
   final bool paidTablesEnabled;
+
+  /// Browser origins allowed to call the API and open the web socket.
+  final List<String> allowedOrigins;
 
   bool get fakePayments => paymentProviders.contains('fake');
 

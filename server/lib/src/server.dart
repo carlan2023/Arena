@@ -34,6 +34,7 @@ import '../config.dart';
 import 'bot.dart';
 import 'clock.dart';
 import 'http/api.dart';
+import 'http/cors.dart';
 import 'http/ws.dart';
 import 'rooms/room_manager.dart';
 import 'store/live_store.dart';
@@ -256,6 +257,7 @@ Future<RunningServer> startServer(
     ..get(
       '/v1/ws',
       webSocketRoute(
+        allowedOrigins: config.allowedOrigins,
         rooms: rooms,
         clock: clock,
         messagesPerSecond: config.wsMessagesPerSecond,
@@ -270,6 +272,7 @@ Future<RunningServer> startServer(
 
   final handler = const Pipeline()
       .addMiddleware(logRequestPaths(log))
+      .addMiddleware(cors(config.allowedOrigins))
       .addHandler(router.call);
   final server = await shelf_io.serve(handler, config.host, config.port);
   server.autoCompress = true;
