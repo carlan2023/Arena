@@ -14,10 +14,14 @@ class SeatView {
     this.isBot = false,
     this.connected = true,
     this.isYou = false,
+    this.avatar,
   });
 
   final PlayerColor color;
   final String name;
+
+  /// The online player's preset avatar; null in pass and play.
+  final int? avatar;
   final bool isBot;
   final bool connected;
   final bool isYou;

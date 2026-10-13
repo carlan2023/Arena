@@ -6,6 +6,7 @@ import 'package:ludo_engine/ludo_engine.dart';
 import '../online/api.dart';
 import '../online/auth.dart';
 import '../online/config.dart';
+import 'avatar.dart';
 
 /// Play with friends, join by code, or pass and play.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -83,6 +84,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('Arena'),
         actions: [
+          IconButton(
+            key: const Key('profile'),
+            tooltip: 'Profile',
+            onPressed: () => context.push('/profile'),
+            icon: session == null
+                ? const Icon(Icons.account_circle)
+                : ArenaAvatar(avatar: session.user.avatar, radius: 14),
+          ),
           if (verified)
             IconButton(
               tooltip: 'Log out',

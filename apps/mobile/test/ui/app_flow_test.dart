@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:arena/app/app.dart';
+import 'package:arena/ui/avatar.dart';
 import 'package:arena/ui/game_table.dart';
 import 'package:arena/ui/local_game_screen.dart';
 import 'package:arena/ui/local_setup_screen.dart';
@@ -361,6 +362,142 @@ void main() {
     expect(app.connector.sockets, hasLength(2));
     expect(app.connector.last.sent.single, isA<QueueJoinMessage>());
     await app.stop();
+  });
+
+  testWidgets('lobby players show their avatars, bots a robot', (tester) async {
+    final app = App(tester);
+    await app.start();
+    app.links.add(Uri.parse('https://arena.example/r/ABC234'));
+    await settle(tester);
+    await app.receive(
+      lobbyState(
+        room: lobbyRoom(
+          players: [
+            const PlayerView(
+              seat: 0,
+              userId: 'u1',
+              displayName: 'Amina',
+              avatar: 4,
+              color: null,
+              isBot: false,
+              connected: true,
+            ),
+            const PlayerView(
+              seat: 1,
+              userId: 'bot:1',
+              displayName: 'Bot 2',
+              avatar: 1,
+              color: null,
+              isBot: true,
+              connected: false,
+            ),
+          ],
+        ),
+      ),
+    );
+    expect(find.byIcon(avatarIcon(4)), findsOneWidget);
+    expect(find.byIcon(Icons.smart_toy), findsOneWidget);
+    await app.stop();
+  });
+
+  group('profile', () {
+    RecentMatchView recent({int? rank, bool abandoned = false}) =>
+        RecentMatchView(
+          matchId: 'm$rank',
+          mode: GameMode.oneVsOne,
+          stake: 0,
+          entry: 0,
+          abandoned: abandoned,
+          endedAt: DateTime(2026, 10, 12, 18),
+          rank: rank,
+          players: [
+            RecentPlayerView(
+              seat: 0,
+              displayName: 'Amina',
+              avatar: 0,
+              isBot: false,
+              rank: rank,
+            ),
+            const RecentPlayerView(
+              seat: 1,
+              displayName: 'Bot 2',
+              avatar: 1,
+              isBot: true,
+            ),
+          ],
+        );
+
+    testWidgets('choose an avatar, change the name, see recent games', (
+      tester,
+    ) async {
+      final app = App(tester);
+      app.api
+        ..user = me
+        ..recent = [recent(rank: 1), recent(abandoned: true), recent(rank: 2)];
+      await app.start();
+      await tester.tap(find.byKey(const Key('profile')));
+      await settle(tester);
+      expect(find.text('Won · 1 v 1'), findsOneWidget);
+      expect(find.text('Not finished · 1 v 1'), findsOneWidget);
+      expect(find.text('2nd of 2 · 1 v 1'), findsOneWidget);
+      expect(find.text('12/10'), findsNWidgets(3));
+      expect(find.text('Amina, Bot 2'), findsNWidgets(3));
+
+      await tester.tap(find.byKey(const Key('avatar-5')));
+      await settle(tester);
+      expect(app.api.calls, contains('profile tok-1 - 5'));
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('profile-avatar')),
+          matching: find.byIcon(avatarIcon(5)),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.enterText(find.byKey(const Key('profile-name')), ' ');
+      await tester.tap(find.byKey(const Key('save-name')));
+      await settle(tester);
+      expect(find.text('Use 1 to 24 letters'), findsOneWidget);
+      expect(app.api.calls.where((c) => c.startsWith('profile')), hasLength(1));
+
+      await tester.enterText(find.byKey(const Key('profile-name')), 'Nakato ');
+      await tester.tap(find.byKey(const Key('save-name')));
+      await settle(tester);
+      expect(app.api.calls.last, 'profile tok-1 Nakato -');
+      expect(find.text('Name saved'), findsOneWidget);
+
+      await tester.pageBack();
+      await settle(tester);
+      expect(find.text('Hello, Nakato'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('profile')),
+          matching: find.byIcon(avatarIcon(5)),
+        ),
+        findsOneWidget,
+      );
+      await app.stop();
+    });
+
+    testWidgets('a new player opening the profile becomes a guest', (
+      tester,
+    ) async {
+      final app = App(tester);
+      await app.start(loggedIn: false);
+      await tester.tap(find.byKey(const Key('profile')));
+      await settle(tester);
+      expect(app.api.calls, ['guest', 'recent guest-tok']);
+      expect(find.byKey(const Key('recent-empty')), findsOneWidget);
+      expect(find.textContaining('playing as a guest'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('profile-name')))
+            .controller!
+            .text,
+        'Player 7f3a',
+      );
+      await app.stop();
+    });
   });
 
   testWidgets('home leads to a pass and play game', (tester) async {

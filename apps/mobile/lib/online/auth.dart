@@ -160,6 +160,19 @@ class AuthController extends AsyncNotifier<Session?> {
     final user = await ref
         .read(arenaApiProvider)
         .setDisplayName(session.token, name);
+    await _keep(session, user);
+  }
+
+  /// Changes the name, the avatar or both on the server and keeps the result.
+  Future<void> setProfile({String? name, int? avatar}) async {
+    final session = await ensureSession();
+    final user = await ref
+        .read(arenaApiProvider)
+        .setProfile(session.token, name: name, avatar: avatar);
+    await _keep(session, user);
+  }
+
+  Future<void> _keep(Session session, UserView user) async {
     final next = Session(token: session.token, user: user);
     await ref.read(sessionStoreProvider).save(next);
     state = AsyncData(next);

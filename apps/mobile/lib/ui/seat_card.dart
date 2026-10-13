@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../board/board_palette.dart';
 import '../game/table_view.dart';
+import 'avatar.dart';
 
 /// A player's card with a ring that counts down their time.
 class SeatCard extends StatelessWidget {
@@ -33,7 +34,11 @@ class SeatCard extends StatelessWidget {
       radius: 16,
       backgroundColor: color,
       child: Icon(
-        seat.isBot ? Icons.smart_toy : Icons.person,
+        seat.isBot
+            ? Icons.smart_toy
+            : seat.avatar == null
+            ? Icons.person
+            : avatarIcon(seat.avatar!),
         size: 18,
         color: Colors.white,
       ),

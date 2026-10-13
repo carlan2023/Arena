@@ -11,6 +11,7 @@ import '../ui/home_screen.dart';
 import '../ui/local_game_screen.dart';
 import '../ui/local_setup_screen.dart';
 import '../ui/login_screen.dart';
+import '../ui/profile_screen.dart';
 import '../ui/quick_match_screen.dart';
 import '../ui/room_screen.dart';
 
@@ -64,6 +65,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
+      GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
       GoRoute(
         path: '/local',
         builder: (context, _) => LocalSetupScreen(

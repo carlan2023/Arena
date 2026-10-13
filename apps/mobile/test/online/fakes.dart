@@ -57,6 +57,26 @@ class FakeApi implements ArenaApi {
     return user = UserView(id: user.id, phone: user.phone, displayName: name);
   }
 
+  List<RecentMatchView> recent = [];
+
+  @override
+  Future<UserView> setProfile(String token, {String? name, int? avatar}) async {
+    calls.add('profile $token ${name ?? '-'} ${avatar ?? '-'}');
+    if (failWith case final e?) throw e;
+    return user = UserView(
+      id: user.id,
+      phone: user.phone,
+      displayName: name ?? user.displayName,
+      avatar: avatar ?? user.avatar,
+    );
+  }
+
+  @override
+  Future<List<RecentMatchView>> recentMatches(String token) async {
+    calls.add('recent $token');
+    return recent;
+  }
+
   @override
   Future<RoomView> createRoom(
     String token, {
