@@ -94,6 +94,15 @@ class ArenaClient {
         await _send('GET', '/v1/matches/$matchId/verify'),
       );
 
+  /// Coin balance and the daily reward (M3.4).
+  Future<CoinsView> coins() async =>
+      CoinsView.fromJson(await _send('GET', '/v1/coins'));
+
+  /// Claims today's reward. Throws [ApiError] already_claimed (409) when it
+  /// was claimed today.
+  Future<CoinGrantView> claimDailyReward() async =>
+      CoinGrantView.fromJson(await _send('POST', '/v1/coins/daily'));
+
   /// The caller's last 20 ended matches, newest first.
   Future<List<RecentMatchView>> recentMatches() async {
     final j = await _send('GET', '/v1/matches/recent');

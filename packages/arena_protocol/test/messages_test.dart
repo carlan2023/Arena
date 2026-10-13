@@ -276,6 +276,31 @@ void main() {
     expect(RecentMatchView.fromJson(r.toJson()).toJson(), r.toJson());
   });
 
+  test('coin views round trip', () {
+    final c = CoinsView(
+      balance: 620,
+      dailyReward: DailyRewardView(
+        available: false,
+        amount: 120,
+        streak: 1,
+        nextAt: DateTime.utc(2026, 10, 13, 21),
+      ),
+    );
+    expect(CoinsView.fromJson(c.toJson()).toJson(), c.toJson());
+    expect(
+      () => CoinsView.fromJson({'balance': 1}),
+      throwsA(isA<ProtocolException>()),
+    );
+    const g = CoinGrantView(balance: 600, granted: 100, streak: 1);
+    expect(CoinGrantView.fromJson(g.toJson()).toJson(), g.toJson());
+    expect(const CoinGrantView(balance: 1, granted: 0).toJson(), {
+      'balance': 1,
+      'granted': 0,
+    });
+    const u = UserView(id: 'u', phone: '', displayName: 'G', coins: 500);
+    expect(UserView.fromJson(u.toJson()).coins, 500);
+  });
+
   test('avatars are in User and Player, and default to 0', () {
     const u = UserView(id: 'u', phone: '', displayName: 'G', avatar: 12);
     expect(u.toJson()['avatar'], 12);
