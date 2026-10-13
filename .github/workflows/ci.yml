@@ -45,30 +45,6 @@ jobs:
     defaults:
       run:
         working-directory: ${{ matrix.package }}
-    # Only the server packages use Postgres and Redis; an empty image skips the
-    # service. Images come from the AWS mirror of the Docker library, because
-    # parallel jobs pulling from Docker Hub hit its anonymous rate limit.
-    services:
-      postgres:
-        image: ${{ startsWith(matrix.package, 'server') && 'public.ecr.aws/docker/library/postgres:16' || '' }}
-        env:
-          POSTGRES_USER: arena
-          POSTGRES_PASSWORD: arena
-          POSTGRES_DB: arena
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U arena"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: ${{ startsWith(matrix.package, 'server') && 'public.ecr.aws/docker/library/redis:7' || '' }}
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
       DATABASE_URL: postgres://arena:arena@localhost:5432/arena
       REDIS_URL: redis://localhost:6379
@@ -86,6 +62,13 @@ jobs:
           path: ~/.pub-cache
           key: pub-dart-${{ runner.os }}-${{ hashFiles('**/pubspec.yaml') }}
           restore-keys: pub-dart-${{ runner.os }}-
+      # Only the server packages use Postgres and Redis. They run on the
+      # runner itself rather than as service containers, since anonymous
+      # image pulls hit registry rate limits (D47).
+      - name: Start Postgres and Redis
+        if: startsWith(matrix.package, 'server')
+        working-directory: .
+        run: .github/scripts/start_databases.sh
       - run: dart pub get
       - run: dart format --output=none --set-exit-if-changed .
       - run: dart analyze --fatal-infos
