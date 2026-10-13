@@ -34,6 +34,7 @@ import '../config.dart';
 import 'bot.dart';
 import 'clock.dart';
 import 'http/api.dart';
+import 'http/cors.dart';
 import 'http/ws.dart';
 import 'rooms/room_manager.dart';
 import 'store/live_store.dart';
@@ -252,6 +253,7 @@ Future<RunningServer> startServer(
     matchLog: matchLog,
     fakePayments: fake,
   );
+  final origins = OriginPolicy(config.allowedOrigins);
   final router = api.router()
     ..get(
       '/v1/ws',
@@ -259,6 +261,7 @@ Future<RunningServer> startServer(
         rooms: rooms,
         clock: clock,
         messagesPerSecond: config.wsMessagesPerSecond,
+        origins: origins,
         authenticate: (token) async {
           final user = await api.userFor(token);
           return user == null
@@ -270,6 +273,7 @@ Future<RunningServer> startServer(
 
   final handler = const Pipeline()
       .addMiddleware(logRequestPaths(log))
+      .addMiddleware(cors(origins))
       .addHandler(router.call);
   final server = await shelf_io.serve(handler, config.host, config.port);
   server.autoCompress = true;
