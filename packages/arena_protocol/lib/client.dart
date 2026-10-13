@@ -63,6 +63,15 @@ class ArenaClient {
   Future<UserView> setDisplayName(String name) async =>
       UserView.fromJson(await _send('PATCH', '/v1/me', {'displayName': name}));
 
+  /// Changes the display name, the avatar, or both (M3.3).
+  Future<UserView> setProfile({String? displayName, int? avatar}) async =>
+      UserView.fromJson(
+        await _send('PATCH', '/v1/me', {
+          'displayName': ?displayName,
+          'avatar': ?avatar,
+        }),
+      );
+
   Future<RoomView> createRoom({
     GameMode mode = GameMode.oneVsOne,
     int seats = 2,
@@ -84,6 +93,14 @@ class ArenaClient {
       MatchVerification.fromJson(
         await _send('GET', '/v1/matches/$matchId/verify'),
       );
+
+  /// The caller's last 20 ended matches, newest first.
+  Future<List<RecentMatchView>> recentMatches() async {
+    final j = await _send('GET', '/v1/matches/recent');
+    return [
+      for (final m in j['matches'] as List) RecentMatchView.fromJson(m as Json),
+    ];
+  }
 
   /// Any JSON route. Throws [ApiError] on an error status.
   Future<Json> request(String method, String path, [Json? body]) =>
