@@ -35,4 +35,19 @@ void main() {
     );
     expect(await auth.authenticate(sessions.issue('ghost')), isNull);
   });
+
+  test('guest starts a new account with no phone each time', () async {
+    final (token, user) = await auth.guest();
+    expect(user.isGuest, isTrue);
+    expect(user.phone, '');
+    expect(user.displayName, startsWith('Player '));
+    expect((await auth.authenticate(token))?.id, user.id);
+    final (_, other) = await auth.guest();
+    expect(other.id, isNot(user.id));
+  });
+
+  test('a phone login is not a guest', () async {
+    final (_, user) = await auth.login('fake:+256772123456');
+    expect(user.isGuest, isFalse);
+  });
 }

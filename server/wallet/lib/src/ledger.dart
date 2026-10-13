@@ -180,7 +180,7 @@ abstract interface class Ledger {
   /// Sum of entries.
   Future<int> balance(AccountId account);
 
-  /// Newest first.
+  /// Newest first. Empty when [limit] is below 1.
   Future<List<LedgerEntry>> history(AccountId account, {int limit = 50});
 
   /// Every transaction sums to zero per currency, every balanceAfter matches
@@ -247,11 +247,13 @@ class InMemoryLedger implements Ledger {
   Future<int> balance(AccountId account) async => _balance(account);
 
   @override
-  Future<List<LedgerEntry>> history(
-    AccountId account, {
-    int limit = 50,
-  }) async =>
-      _entries.reversed.where((e) => e.account == account).take(limit).toList();
+  Future<List<LedgerEntry>> history(AccountId account, {int limit = 50}) async {
+    if (limit < 1) return const [];
+    return _entries.reversed
+        .where((e) => e.account == account)
+        .take(limit)
+        .toList();
+  }
 
   @override
   Future<bool> verifyIntegrity() async {

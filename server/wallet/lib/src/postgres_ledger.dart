@@ -159,6 +159,7 @@ class PostgresLedger implements Ledger {
 
   @override
   Future<List<LedgerEntry>> history(AccountId account, {int limit = 50}) async {
+    if (limit < 1) return const [];
     final result = await _pool.execute(
       Sql.named(
         'SELECT e.tx_id, e.amount, e.balance_after, t.kind, e.created_at '

@@ -259,6 +259,8 @@ void ledgerTests(Future<(Ledger, Future<void> Function())> Function() create) {
     expect(history.every((e) => e.at.isUtc), isTrue);
     expect(await ledger.history(alice, limit: 2), hasLength(2));
     expect(await ledger.history(bob), isEmpty);
+    expect(await ledger.history(alice, limit: 0), isEmpty);
+    expect(await ledger.history(alice, limit: -1), isEmpty);
   });
 
   test('entries of one transaction share its txId', () async {
