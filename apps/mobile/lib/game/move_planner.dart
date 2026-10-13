@@ -150,9 +150,4 @@ class MovePlanner {
     _states.removeLast();
     return true;
   }
-
-  /// Takes back every step of this roll.
-  void undoAll() {
-    while (undo()) {}
-  }
 }

@@ -50,6 +50,7 @@ class _LocalSetupScreenState extends State<LocalSetupScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           SegmentedButton<GameMode>(
+            showSelectedIcon: false,
             segments: const [
               ButtonSegment(value: GameMode.oneVsOne, label: Text('1v1')),
               ButtonSegment(value: GameMode.freeForAll, label: Text('All')),
@@ -83,19 +84,36 @@ class _LocalSetupScreenState extends State<LocalSetupScreen> {
       ...SeatKind.values,
       if (_mode == GameMode.freeForAll) null,
     ];
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: BoardPalette.standard.player(c.index),
-      ),
-      title: Text(colorName(c)),
-      trailing: DropdownButton<SeatKind?>(
-        key: Key('seat-${c.name}'),
-        value: _seats[c],
-        items: [
-          for (final k in kinds)
-            DropdownMenuItem(value: k, child: Text(_label(k))),
+    // A Row, not a ListTile: a ListTile gives its trailing dropdown its full
+    // width and squeezes the name, which overflowed on narrow web screens.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: BoardPalette.standard.player(c.index),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(colorName(c), overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: 8),
+          Flexible(
+            flex: 2,
+            child: DropdownButton<SeatKind?>(
+              key: Key('seat-${c.name}'),
+              isExpanded: true,
+              value: _seats[c],
+              items: [
+                for (final k in kinds)
+                  DropdownMenuItem(
+                    value: k,
+                    child: Text(_label(k), overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (k) => setState(() => _seats[c] = k),
+            ),
+          ),
         ],
-        onChanged: (k) => setState(() => _seats[c] = k),
       ),
     );
   }

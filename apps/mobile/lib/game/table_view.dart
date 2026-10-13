@@ -96,13 +96,6 @@ class TableView {
 
   List<DieFace> get dice => diceFaces(state);
   List<GhostMark> get ghosts => ghostMarks(options);
-
-  SeatView? seatOf(PlayerColor color) {
-    for (final s in seats) {
-      if (s.color == color) return s;
-    }
-    return null;
-  }
 }
 
 /// What the table can ask its controller to do.
