@@ -183,6 +183,10 @@ abstract interface class Ledger {
   /// Newest first.
   Future<List<LedgerEntry>> history(AccountId account, {int limit = 50});
 
+  /// The metadata of the transaction posted with [idempotencyKey], or null if
+  /// none was. Lets a service see whether something keyed already happened.
+  Future<Map<String, Object?>?> metadataFor(String idempotencyKey);
+
   /// Every transaction sums to zero per currency, every balanceAfter matches
   /// the running sum, and no wallet or pot balance is negative.
   Future<bool> verifyIntegrity();
@@ -192,6 +196,7 @@ class InMemoryLedger implements Ledger {
   final DateTime Function() _clock;
   final _entries = <LedgerEntry>[];
   final _txIdByKey = <String, String>{};
+  final _metadataByKey = <String, Map<String, Object?>>{};
 
   InMemoryLedger({DateTime Function()? clock}) : _clock = clock ?? DateTime.now;
 
@@ -236,8 +241,13 @@ class InMemoryLedger implements Ledger {
       add(t.to, t.amount);
     }
     _txIdByKey[tx.idempotencyKey] = txId;
+    _metadataByKey[tx.idempotencyKey] = Map.unmodifiable(tx.metadata);
     return PostResult(txId: txId, duplicate: false);
   }
+
+  @override
+  Future<Map<String, Object?>?> metadataFor(String idempotencyKey) async =>
+      _metadataByKey[idempotencyKey];
 
   int _balance(AccountId account) => _entries
       .where((e) => e.account == account)

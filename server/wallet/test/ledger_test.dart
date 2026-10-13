@@ -261,6 +261,24 @@ void ledgerTests(Future<(Ledger, Future<void> Function())> Function() create) {
     expect(await ledger.history(bob), isEmpty);
   });
 
+  test(
+    'metadataFor returns what a keyed transaction was posted with',
+    () async {
+      expect(await ledger.metadataFor('k'), isNull);
+      await ledger.post(
+        LedgerTransaction(
+          idempotencyKey: 'k',
+          kind: 'coin_daily',
+          transfers: const [Transfer(from: revenue, to: alice, amount: 1)],
+          metadata: const {'streak': 3, 'day': '2026-10-13'},
+        ),
+      );
+      expect(await ledger.metadataFor('k'), {'streak': 3, 'day': '2026-10-13'});
+      await ledger.post(deposit('plain', alice, 1));
+      expect(await ledger.metadataFor('plain'), isEmpty);
+    },
+  );
+
   test('entries of one transaction share its txId', () async {
     final r = await ledger.post(move('m', mtn, alice, 10));
     expect((await ledger.history(alice)).single.txId, r.txId);

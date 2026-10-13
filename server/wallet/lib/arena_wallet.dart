@@ -5,6 +5,7 @@ library;
 export 'package:arena_auth/arena_auth.dart' show Migration;
 
 export 'src/airtel_money_provider.dart';
+export 'src/coins.dart';
 export 'src/fake_payment_provider.dart';
 export 'src/ledger.dart';
 export 'src/migrations.dart';
