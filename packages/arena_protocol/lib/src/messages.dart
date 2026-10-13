@@ -47,6 +47,14 @@ sealed class ClientMessage {
       LeaveRoomMessage.kType => LeaveRoomMessage(cseq: cseq),
       EmoteMessage.kType => EmoteMessage(id: reqString(j, 'id'), cseq: cseq),
       PingMessage.kType => PingMessage(cseq: cseq),
+      QueueJoinMessage.kType => QueueJoinMessage(
+        mode: parseMode(reqString(j, 'mode')),
+        entry: optInt(j, 'entry') ?? 0,
+        stake: optInt(j, 'stake') ?? 0,
+        clientSeed: optString(j, 'clientSeed'),
+        cseq: cseq,
+      ),
+      QueueLeaveMessage.kType => QueueLeaveMessage(cseq: cseq),
       _ => throw ProtocolException('unknown message type $type'),
     };
   }
@@ -125,6 +133,40 @@ class PingMessage extends ClientMessage {
   String get type => kType;
 }
 
+/// Joins the quick match queue for [mode] at a table: [entry] coins or a
+/// [stake] in UGX, both 0 for a free table (m3.md section 4). [clientSeed]
+/// takes the place of join_room's, because a matched game starts at once.
+class QueueJoinMessage extends ClientMessage {
+  const QueueJoinMessage({
+    required this.mode,
+    this.entry = 0,
+    this.stake = 0,
+    this.clientSeed,
+    super.cseq,
+  });
+  static const kType = 'queue_join';
+  final GameMode mode;
+  final int entry;
+  final int stake;
+  final String? clientSeed;
+  @override
+  String get type => kType;
+  @override
+  Json fieldsToJson() => {
+    'mode': mode.name,
+    'entry': entry,
+    'stake': stake,
+    'clientSeed': ?clientSeed,
+  };
+}
+
+class QueueLeaveMessage extends ClientMessage {
+  const QueueLeaveMessage({super.cseq});
+  static const kType = 'queue_leave';
+  @override
+  String get type => kType;
+}
+
 // ---------------------------------------------------------------------------
 // Server to app
 // ---------------------------------------------------------------------------
@@ -154,6 +196,7 @@ sealed class ServerMessage {
       GameOverMessage.kType => GameOverMessage.fromJson(j),
       ErrorMessage.kType => ErrorMessage.fromJson(j),
       PongMessage.kType => PongMessage.fromJson(j),
+      QueueStatusMessage.kType => QueueStatusMessage.fromJson(j),
       _ => UnknownServerMessage(type, j),
     };
   }
@@ -445,6 +488,88 @@ class GameOverMessage extends ServerMessage {
   }
 }
 
+enum QueueState { waiting, matched, timeout, cancelled }
+
+/// The state of this socket's quick match search. Sent on queue_join, when
+/// the number of players found changes, and when the search ends.
+class QueueStatusMessage extends ServerMessage {
+  const QueueStatusMessage({
+    required this.state,
+    required this.mode,
+    required this.entry,
+    required this.stake,
+    required this.waited,
+    required this.playersFound,
+    required this.playersNeeded,
+    required this.serverNow,
+    this.botFillAt,
+    this.roomCode,
+    this.ref,
+  });
+  static const kType = 'queue_status';
+  final QueueState state;
+  final GameMode mode;
+  final int entry;
+  final int stake;
+
+  /// Whole seconds since queue_join.
+  final int waited;
+
+  /// Players in this queue, the recipient included.
+  final int playersFound;
+  final int playersNeeded;
+
+  /// Epoch ms when bots take the empty seats, for free and coin tables.
+  final int? botFillAt;
+
+  /// The server clock, to place [botFillAt] on the phone's clock.
+  final int serverNow;
+
+  /// Set when [state] is matched: join it with join_room.
+  final String? roomCode;
+
+  /// The cseq of the queue_join or queue_leave this answers, if any.
+  final int? ref;
+
+  @override
+  String get type => kType;
+  @override
+  Json toJson() => {
+    'type': type,
+    'ref': ?ref,
+    'state': state.name,
+    'mode': mode.name,
+    'entry': entry,
+    'stake': stake,
+    'waited': waited,
+    'playersFound': playersFound,
+    'playersNeeded': playersNeeded,
+    'botFillAt': botFillAt,
+    'roomCode': roomCode,
+    'serverNow': serverNow,
+  };
+  factory QueueStatusMessage.fromJson(Json j) => QueueStatusMessage(
+    ref: optInt(j, 'ref'),
+    state: parseQueueState(reqString(j, 'state')),
+    mode: parseMode(reqString(j, 'mode')),
+    entry: reqInt(j, 'entry'),
+    stake: reqInt(j, 'stake'),
+    waited: reqInt(j, 'waited'),
+    playersFound: reqInt(j, 'playersFound'),
+    playersNeeded: reqInt(j, 'playersNeeded'),
+    botFillAt: optInt(j, 'botFillAt'),
+    roomCode: optString(j, 'roomCode'),
+    serverNow: reqInt(j, 'serverNow'),
+  );
+}
+
+QueueState parseQueueState(String name) {
+  for (final v in QueueState.values) {
+    if (v.name == name) return v;
+  }
+  throw ProtocolException('unknown state $name');
+}
+
 /// Error codes used in [ErrorMessage] and HTTP error bodies.
 abstract final class ErrorCodes {
   static const badRequest = 'bad_request';
@@ -464,6 +589,14 @@ abstract final class ErrorCodes {
   /// Guests may play free games only; paid play and the wallet need a phone.
   static const phoneRequired = 'phone_required';
   static const internal = 'internal';
+
+  /// queue_join while already in a queue or holding a seat in a room.
+  static const queueBusy = 'queue_busy';
+  static const notFound = 'not_found';
+  static const ageRequired = 'age_required';
+  static const selfExcluded = 'self_excluded';
+  static const limitExceeded = 'limit_exceeded';
+  static const alreadyClaimed = 'already_claimed';
 }
 
 class ErrorMessage extends ServerMessage {

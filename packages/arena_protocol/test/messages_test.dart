@@ -62,6 +62,14 @@ void main() {
       const LeaveRoomMessage(cseq: 5),
       const EmoteMessage(id: 'wave', cseq: 6),
       const PingMessage(cseq: 7),
+      const QueueJoinMessage(
+        mode: GameMode.freeForAll,
+        entry: 50,
+        clientSeed: 'seed',
+        cseq: 8,
+      ),
+      const QueueJoinMessage(mode: GameMode.oneVsOne, stake: 1000),
+      const QueueLeaveMessage(cseq: 9),
     ];
     for (final m in messages) {
       expect(roundTripClient(m), m.encode());
@@ -132,6 +140,29 @@ void main() {
       ),
       const ErrorMessage(ref: 3, code: ErrorCodes.illegalMove, message: 'no'),
       const PongMessage(ref: 7, serverNow: 5),
+      const QueueStatusMessage(
+        ref: 8,
+        state: QueueState.waiting,
+        mode: GameMode.freeForAll,
+        entry: 50,
+        stake: 0,
+        waited: 3,
+        playersFound: 2,
+        playersNeeded: 4,
+        botFillAt: 20000,
+        serverNow: 5,
+      ),
+      const QueueStatusMessage(
+        state: QueueState.matched,
+        mode: GameMode.oneVsOne,
+        entry: 0,
+        stake: 0,
+        waited: 4,
+        playersFound: 2,
+        playersNeeded: 2,
+        roomCode: 'ABC234',
+        serverNow: 5,
+      ),
     ];
     for (final m in messages) {
       expect(roundTripServer(m), m.encode());
@@ -140,6 +171,25 @@ void main() {
     final rs = ServerMessage.decode(messages[0].encode()) as RoomStateMessage;
     expect(rs.state, state);
     expect(rs.room.players[1].isBot, isTrue);
+  });
+
+  test('queue_join defaults to a free table', () {
+    final m =
+        ClientMessage.decode('{"type":"queue_join","mode":"oneVsOne"}')
+            as QueueJoinMessage;
+    expect((m.entry, m.stake, m.clientSeed), (0, 0, null));
+    expect(
+      () => ClientMessage.decode('{"type":"queue_join","mode":"nope"}'),
+      throwsA(isA<ProtocolException>()),
+    );
+    expect(
+      () => ServerMessage.decode(
+        '{"type":"queue_status","state":"lost","mode":"oneVsOne","entry":0,'
+        '"stake":0,"waited":0,"playersFound":1,"playersNeeded":2,'
+        '"serverNow":1}',
+      ),
+      throwsA(isA<ProtocolException>()),
+    );
   });
 
   test('unknown server types are kept as UnknownServerMessage', () {
