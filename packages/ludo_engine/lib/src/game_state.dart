@@ -121,8 +121,10 @@ class GameState {
     );
   }
 
-  /// Test only: builds any position without seating checks. Pieces default
-  /// to all at home for each seated colour. Not for production code.
+  /// Builds any position without seating or consistency checks, for tests
+  /// and hand built positions such as the tutorial lessons. Pieces default
+  /// to all at home for each seated colour. Never use it for untrusted input;
+  /// use [GameState.fromJson], which checks consistency.
   factory GameState.custom({
     required GameMode mode,
     required List<PlayerColor> players,

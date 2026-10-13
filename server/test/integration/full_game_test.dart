@@ -103,7 +103,7 @@ void main() {
       await alice.connect();
       await bob.connect();
       alice.joinRoom(room.code, clientSeed: 'alice-seed');
-      final lobby = await alice.next<RoomStateMessage>();
+      final lobby = await alice.next<RoomStateMessage>(after: 0);
       expect(lobby.serverSeedHash, isNotNull);
       bob.joinRoom(room.code, clientSeed: 'bob-seed');
 
@@ -136,6 +136,7 @@ void main() {
       );
 
       final over = await alice.next<GameOverMessage>(
+        after: 0,
         timeout: const Duration(minutes: 2),
       );
       expect(over.winners, hasLength(1));
