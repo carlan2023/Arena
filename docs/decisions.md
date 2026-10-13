@@ -38,6 +38,8 @@ Short records of decisions made while building. Rule defaults here are placehold
 | D32 | 26 Sep 2026 | With fake login and fake payments a missing SESSION_SECRET is made at random on start, so docker compose up works with no setup. Otherwise the server refuses to start without one | One command local stack |
 | D33 | 26 Sep 2026 | Guest mode: free play needs no login. The app starts a guest account on the first online action; the phone login is asked for only for paid tables and the wallet, which the server refuses to guests with phone_required | A login wall before a free game drives players away. Money needs a verified phone |
 | D34 | 26 Sep 2026 | A piece captures only where it stops. A combined move (both dice on one piece) is one move that passes single pieces without capturing. A capture stops that piece for the roll; using both dice comes before capturing; forced landings still capture; the stop lasts one roll, so the extra roll after a double 6 frees it; a release that captures also stops the piece | Decided by Allan after a report that a 4 and 4 move captured the piece it passed |
+| D35 to D44 | 13 Oct 2026 | M3 product defaults: avatars, coins, coin tables, paid tables, quick match, age and limits, withdrawals, tutorial, build flavours, Luganda. See docs/contracts/m3.md section 2 | Placeholders for Allan, each a setting |
+| D45 to D57 | 13 Oct 2026 | M3 defaults from the review round: teams free only, paid play only through quick match, house funds bot entries at coin tables, welcome coins on the first finished game, guest becomes the phone account, paid games refunded when abandoned, withdrawals to the own phone only, rolling deposit limits, date of birth correction by support, avatars drawn in code, full flavour installs beside the Play app, language setting in the app, tutorial reward trusted. See docs/contracts/m3.md section 7 | Worker review of the M3 contract |
 
 ## Open for Allan
 
@@ -54,3 +56,5 @@ Short records of decisions made while building. Rule defaults here are placehold
 | Q9 | Hosting account, staging domain and GitHub DEPLOY secrets (M2.8) | Local docker compose |
 | Q10 | Old email login and grid board files in apps/mobile/lib/screens, widgets, services and models are unused; approve deleting them | Kept, unused |
 | Q11 | Luganda text for quick chat and the app | English only |
+| Q12 | M3 defaults D35 to D57 (coins, tables, limits, withdrawals, flavours) | As in docs/contracts/m3.md |
+| Q13 | Does the regulator need real ID checks, not just a self declared date of birth? | Self declared, correctable by support |
