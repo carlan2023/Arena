@@ -109,7 +109,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               style: text.bodyMedium,
             ),
             const SizedBox(height: 24),
-            FilledButton.icon(
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const Key('quick-1v1'),
+                    onPressed: () => context.push('/quick/oneVsOne'),
+                    icon: const Icon(Icons.bolt),
+                    label: const Text('Quick 1 v 1'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    key: const Key('quick-4'),
+                    onPressed: () => context.push('/quick/freeForAll'),
+                    icon: const Icon(Icons.groups),
+                    label: const Text('Quick 4 players'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
               key: const Key('play-friends'),
               onPressed: _busy ? null : _createRoom,
               icon: const Icon(Icons.group_add),
