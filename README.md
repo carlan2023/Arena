@@ -241,7 +241,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 
 | ID | Task | Status | Date done |
 |---|---|---|---|
-| M3.1 | Quick match queue for 1v1 and four players | Not started | |
+| M3.1 | Quick match queue for 1v1 and four players | Done | 13 Oct 2026 |
 | M3.2 | Bots fill empty seats in free games after 20 seconds | Not started | |
 | M3.3 | Profiles and avatars | Not started | |
 | M3.4 | Coins and daily reward | Not started | |
@@ -309,6 +309,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 13 Oct 2026 | M0.7 | App dependencies updated in one change, replacing Dependabot pull requests 13, 11, 7 and 6: go_router 18.0.2, shared_preferences 2.5.6, share_plus 13.3.1, app_links 7.2.2, cupertino_icons 2.0.0 and flutter_lints 6.0.0. The three new lint warnings from flutter_lints 6 fixed with null aware map entries |
 | 13 Oct 2026 | M0.7 | GitHub Actions updated, replacing Dependabot pull request 8: checkout 7, cache 6, upload-artifact 7, setup-java 6, docker login 4, docker build-push 7 and action-gh-release 3. Each major version moves to the Node 24 runtime; none removes an input these workflows use |
 | 13 Oct 2026 | M3 | M3 contract reviewed and frozen (docs/contracts/m3.md section 0, D48). The product defaults D35 to D44 logged as placeholders for Allan (Q12). The pass and play test now starts from the live home screen instead of the old unused one. README now says a paid stake is taken when the game starts, not on join. Six bigger findings assigned to M3.1, M3.2, M3.4, M3.9 and M3.11, and one new question for Allan (Q13) |
+| 13 Oct 2026 | M3.1 | Quick match for 1v1 and four player free for all (D49). New queue_join, queue_leave and queue_status messages. The server keeps a queue per mode and table and starts a room as soon as one is full, with every matched player seated. The home screen has Quick match 1v1 and Quick match 4 buttons; the search screen shows players found, time waited and a cancel button, reconnects and queues again if the connection drops, then opens the room. Free tables only until coins and paid tables arrive |
 
 ## 5. Scope of the first release
 
