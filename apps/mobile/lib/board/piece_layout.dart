@@ -87,8 +87,7 @@ class MotionPlan {
 
   /// Pieces in flight at time [t], with their points.
   Map<PieceRef, Offset> pointsAt(double t) => {
-    for (final m in motions)
-      if (m.pointAt(t) case final p?) m.piece: p,
+    for (final m in motions) m.piece: ?m.pointAt(t),
   };
 }
 
