@@ -45,9 +45,12 @@ jobs:
     defaults:
       run:
         working-directory: ${{ matrix.package }}
+    # Only the server packages use Postgres and Redis; an empty image skips the
+    # service. Images come from the AWS mirror of the Docker library, because
+    # parallel jobs pulling from Docker Hub hit its anonymous rate limit.
     services:
       postgres:
-        image: postgres:16
+        image: ${{ startsWith(matrix.package, 'server') && 'public.ecr.aws/docker/library/postgres:16' || '' }}
         env:
           POSTGRES_USER: arena
           POSTGRES_PASSWORD: arena
@@ -59,7 +62,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       redis:
-        image: redis:7
+        image: ${{ startsWith(matrix.package, 'server') && 'public.ecr.aws/docker/library/redis:7' || '' }}
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping"
