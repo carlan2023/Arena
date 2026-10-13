@@ -105,7 +105,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.has_mobile == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: apps/mobile
@@ -124,14 +124,26 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed .
       - run: flutter analyze --fatal-infos
       - run: flutter test --coverage
-      - name: Build APK
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: flutter build apk --release --build-number=${{ github.run_number }}
+      # One APK per ABI keeps each download under the 30 MB target (README
+      # section 7). Built on pull requests too, so a size regression fails
+      # before it reaches main.
+      - name: Build APKs
+        run: flutter build apk --release --split-per-abi --build-number=${{ github.run_number }}
+      - name: Check APK size
+        run: |
+          echo "| APK | Size | Limit |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for abi in arm64-v8a armeabi-v7a; do
+            "$GITHUB_WORKSPACE/.github/scripts/check_apk_size.sh" \
+              "build/app/outputs/flutter-apk/app-$abi-release.apk" 30
+          done
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: arena-apk-${{ github.run_number }}
-          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: |
+            apps/mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            apps/mobile/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
           retention-days: 14
 
   ci-ok:

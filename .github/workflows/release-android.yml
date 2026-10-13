@@ -52,13 +52,24 @@ jobs:
         run: |
           cd "$APP_DIR"
           flutter pub get
-          flutter build apk --release --build-name="$BUILD_NAME" --build-number=${{ github.run_number }}
+          flutter build apk --release --split-per-abi --build-name="$BUILD_NAME" --build-number=${{ github.run_number }}
           flutter build appbundle --release --build-name="$BUILD_NAME" --build-number=${{ github.run_number }}
-      - name: GitHub release with APK
+      - name: Check APK size
+        run: |
+          for abi in arm64-v8a armeabi-v7a; do
+            .github/scripts/check_apk_size.sh \
+              "$APP_DIR/build/app/outputs/flutter-apk/app-$abi-release.apk" 30
+          done
+      # arm64-v8a fits almost every phone sold since 2017; armeabi-v7a is for
+      # older and low end phones. The Play Store gets the bundle, which it
+      # splits per device itself.
+      - name: GitHub release with APKs
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-release.apk
+          files: |
+            ${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            ${{ env.APP_DIR }}/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
           generate_release_notes: true
       - name: Upload to Play internal testing
         if: env.PLAY_JSON != '' && env.KEYSTORE_B64 != '' && env.PACKAGE_ID != ''

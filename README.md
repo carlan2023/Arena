@@ -147,6 +147,7 @@ The Flutter project is named `arena` and lives at github.com/carlan2023/Arena, i
 | B8 | .github/copilot-instructions.md describes an older version of the project | Fixed 25 Sep 2026 |
 | B9 | Browsers cannot call the server from https://arena-cddfa.web.app, because the server sends no CORS headers | Fixed 13 Oct 2026 |
 | B10 | The pass and play setup screen cuts off the mode buttons and seat choices at phone width on the web build. Each seat row was a list tile whose seat menu could not shrink, which fails with large system text | Fixed 13 Oct 2026 |
+| B11 | The release APK is 54.8 MB, above the 30 MB install target in section 7, because one APK holds the code for every processor type | Fixed 13 Oct 2026 |
 
 We keep the project structure, the dice images and the folder layout. The email login will be replaced by phone number login. The grid board will be replaced by a drawn board driven by a track model, and the single die by two dice rolled on the server.
 
@@ -303,6 +304,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 26 Sep 2026 | M1.2 M1.3 M1.9 | Capture fix (D34). A piece captures only where it stops. Moving one piece with both dice is now one move that passes single pieces without capturing them; a capture stops that piece for the roll and must not waste the other die. Found in play: a 4 and 4 move captured the piece it passed. New named engine tests for the case, app move selection updated |
 | 13 Oct 2026 | M2.12 | B9 fixed (D45). The server answers browser preflight requests and adds CORS headers for the origins in ALLOWED_ORIGINS, by default the Firebase web app and localhost. The web socket refuses other browser origins. The Android app sends no Origin and is not affected |
 | 13 Oct 2026 | M1.11 | B10 fixed. Pass and play seat rows share the width between the colour name and the seat menu, and both shorten with an ellipsis. New tests lay the screen out at 320, 360 and 412 px wide, and with system text at 1.3 and 2 times, in every mode |
+| 13 Oct 2026 | M0.7 | B11 fixed (D46). CI and the release build one APK per processor type instead of one APK for all, and fail when the arm64-v8a or armeabi-v7a APK is above 30 MB. CI now builds the APKs on pull requests too. Releases attach both APKs |
 
 ## 5. Scope of the first release
 
@@ -541,8 +543,8 @@ Four GitHub Actions workflows live in .github/workflows. Each one checks which p
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| ci.yml | Every push to main and every pull request | Formats, analyzes and tests the app, the engine and the server. The engine fails below 95 percent coverage. Server tests run against real Postgres and Redis. Every push to main also builds a release APK and keeps it for 14 days in the run's artifacts, for testing on real phones |
-| release-android.yml | Tags starting with v, for example v0.1.0 | Builds the signed APK and app bundle, attaches the APK to a GitHub release for the website download, and uploads the bundle to Play internal testing once the Play secrets are set |
+| ci.yml | Every push to main and every pull request | Formats, analyzes and tests the app, the engine and the server. The engine fails below 95 percent coverage. Server tests run against real Postgres and Redis. Every run also builds one release APK per processor type and fails if the arm64-v8a or armeabi-v7a APK is above 30 MB. On main the two APKs are kept for 14 days in the run's artifacts, for testing on real phones. Most phones take arm64-v8a; older and low end phones take armeabi-v7a |
+| release-android.yml | Tags starting with v, for example v0.1.0 | Builds the signed APKs, one per processor type, and the app bundle, attaches the arm64-v8a and armeabi-v7a APKs to a GitHub release for the website download, and uploads the bundle to Play internal testing once the Play secrets are set |
 | deploy-web.yml | Every push to main and every pull request | Builds the Flutter web version and deploys it to Firebase Hosting. Main updates the live link, each pull request gets its own preview link for 7 days. The live link is https://arena-cddfa.web.app. Open it in Safari to try the app on an iPhone. It skips the deploy with a notice until the Firebase secret is set |
 | deploy-server.yml | After CI passes on main, and on tags | Builds the server Docker image, pushes it to GitHub's container registry and deploys it over SSH. Main goes to staging, tags go to production. It skips quietly until server/Dockerfile exists |
 
