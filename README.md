@@ -146,6 +146,7 @@ The Flutter project is named `arena` and lives at github.com/carlan2023/Arena, i
 | B7 | The Android package is still com.example.ludo_stake. It must change before the first Play Store upload, since it can never change afterwards | Waiting on M0.5 |
 | B8 | .github/copilot-instructions.md describes an older version of the project | Fixed 25 Sep 2026 |
 | B9 | Browsers cannot call the server from https://arena-cddfa.web.app, because the server sends no CORS headers | Fixed 13 Oct 2026 |
+| B10 | The pass and play setup screen cuts off the mode buttons and seat choices at phone width on the web build. Each seat row was a list tile whose seat menu could not shrink, which fails with large system text | Fixed 13 Oct 2026 |
 
 We keep the project structure, the dice images and the folder layout. The email login will be replaced by phone number login. The grid board will be replaced by a drawn board driven by a track model, and the single die by two dice rolled on the server.
 
@@ -301,6 +302,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 26 Sep 2026 | M2.3 M2.12 | Guest mode. Free games, rooms and invite links work with no login; the app makes a guest account on the first online action. The phone login is only asked for paid tables and the wallet, and the server refuses those to guests |
 | 26 Sep 2026 | M1.2 M1.3 M1.9 | Capture fix (D34). A piece captures only where it stops. Moving one piece with both dice is now one move that passes single pieces without capturing them; a capture stops that piece for the roll and must not waste the other die. Found in play: a 4 and 4 move captured the piece it passed. New named engine tests for the case, app move selection updated |
 | 13 Oct 2026 | M2.12 | B9 fixed (D45). The server answers browser preflight requests and adds CORS headers for the origins in ALLOWED_ORIGINS, by default the Firebase web app and localhost. The web socket refuses other browser origins. The Android app sends no Origin and is not affected |
+| 13 Oct 2026 | M1.11 | B10 fixed. Pass and play seat rows share the width between the colour name and the seat menu, and both shorten with an ellipsis. New tests lay the screen out at 320, 360 and 412 px wide, and with system text at 1.3 and 2 times, in every mode |
 
 ## 5. Scope of the first release
 

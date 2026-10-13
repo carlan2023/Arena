@@ -83,19 +83,47 @@ class _LocalSetupScreenState extends State<LocalSetupScreen> {
       ...SeatKind.values,
       if (_mode == GameMode.freeForAll) null,
     ];
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: BoardPalette.standard.player(c.index),
-      ),
-      title: Text(colorName(c)),
-      trailing: DropdownButton<SeatKind?>(
-        key: Key('seat-${c.name}'),
-        value: _seats[c],
-        items: [
-          for (final k in kinds)
-            DropdownMenuItem(value: k, child: Text(_label(k))),
+    // A Row rather than a ListTile: a ListTile's trailing dropdown cannot
+    // shrink and fails layout on narrow phones with large system text.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: BoardPalette.standard.player(c.index),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Text(
+              colorName(c),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: DropdownButton<SeatKind?>(
+              key: Key('seat-${c.name}'),
+              isExpanded: true,
+              value: _seats[c],
+              items: [
+                for (final k in kinds)
+                  DropdownMenuItem(
+                    value: k,
+                    child: Text(
+                      _label(k),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (k) => setState(() => _seats[c] = k),
+            ),
+          ),
         ],
-        onChanged: (k) => setState(() => _seats[c] = k),
       ),
     );
   }
