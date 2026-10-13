@@ -307,6 +307,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 13 Oct 2026 | M0.7 | B11 fixed (D46). CI and the release build one APK per processor type instead of one APK for all, and fail when the arm64-v8a or armeabi-v7a APK is above 30 MB. CI now builds the APKs on pull requests too. Releases attach both APKs |
 | 13 Oct 2026 | M0.7 | CI pulls the Postgres and Redis images from the AWS mirror of the Docker library and starts them only for the server packages (D47). Six jobs pulling from Docker Hub at once hit its anonymous rate limit, which is why Dependabot pull request 13 failed |
 | 13 Oct 2026 | M0.7 | App dependencies updated in one change, replacing Dependabot pull requests 13, 11, 7 and 6: go_router 18.0.2, shared_preferences 2.5.6, share_plus 13.3.1, app_links 7.2.2, cupertino_icons 2.0.0 and flutter_lints 6.0.0. The three new lint warnings from flutter_lints 6 fixed with null aware map entries |
+| 13 Oct 2026 | M0.7 | GitHub Actions updated, replacing Dependabot pull request 8: checkout 7, cache 6, upload-artifact 7, setup-java 6, docker login 4, docker build-push 7 and action-gh-release 3. Each major version moves to the Node 24 runtime; none removes an input these workflows use |
 
 ## 5. Scope of the first release
 
