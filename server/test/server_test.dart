@@ -236,6 +236,29 @@ void main() {
       expect(res.statusCode, 401);
     });
 
+    test('two guests find each other with quick match', () async {
+      final a = ArenaClient(baseUrl: server.baseUrl);
+      final b = ArenaClient(baseUrl: server.baseUrl);
+      clients.addAll([a, b]);
+      await a.guest();
+      await b.guest();
+      await a.connect();
+      await b.connect();
+      a.queueJoin(clientSeed: 'seed-a');
+      expect((await a.next<QueueStatusMessage>()).state, QueueState.waiting);
+      b.queueJoin(clientSeed: 'seed-b');
+      final matched = await a.next<QueueStatusMessage>(
+        where: (m) => m.state == QueueState.matched,
+      );
+      final code = matched.roomCode!;
+      a.joinRoom(code);
+      final state = await a.next<RoomStateMessage>(
+        where: (m) => m.room.code == code,
+      );
+      expect(state.room.status, RoomStatus.playing);
+      expect(state.room.players, hasLength(2));
+    });
+
     test('bad frames get bad_request with the ref', () async {
       final c = await loggedIn('+256772000007');
       await c.connect();

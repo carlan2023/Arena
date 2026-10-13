@@ -7,6 +7,7 @@ export 'config.dart';
 export 'src/clock.dart';
 export 'src/http/cors.dart' show OriginPolicy;
 export 'src/rooms/room.dart' show Room, Seat, Connection;
+export 'src/rooms/matchmaker.dart' show QueueKey, Matchmaker, MatchedPlayer;
 export 'src/rooms/room_manager.dart'
     show RoomManager, RoomSettings, RoomException, MoveChooser;
 export 'src/server.dart';
