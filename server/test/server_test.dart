@@ -52,6 +52,22 @@ void main() {
       );
     });
 
+    test('profile: avatar and name, checked before either is saved', () async {
+      final c = await loggedIn('+256772000002');
+      expect(c.user!.avatar, inInclusiveRange(0, 15));
+      final u = await c.setProfile(displayName: 'Nakato', avatar: 9);
+      expect((u.displayName, u.avatar), ('Nakato', 9));
+      expect((await c.me()).avatar, 9);
+      final bad = throwsA(isA<ApiError>().having((e) => e.status, 's', 400));
+      await expectLater(c.setProfile(displayName: 'New', avatar: 16), bad);
+      await expectLater(c.setProfile(displayName: '', avatar: 1), bad);
+      await expectLater(c.request('PATCH', '/v1/me', {}), bad);
+      await expectLater(c.request('PATCH', '/v1/me', {'avatar': '2'}), bad);
+      final me = await c.me();
+      expect((me.displayName, me.avatar), ('Nakato', 9));
+      expect(await c.recentMatches(), isEmpty);
+    });
+
     test('guests play free rooms but not the wallet or paid tables', () async {
       final g = ArenaClient(baseUrl: server.baseUrl);
       clients.add(g);
@@ -272,6 +288,7 @@ void main() {
     test('two players finish a game and verify the dice', () async {
       final a = await loggedIn('+256772000010');
       final b = await loggedIn('+256772000011');
+      await a.setProfile(avatar: 11);
       final room = await a.createRoom();
       await a.connect();
       await b.connect();
@@ -287,6 +304,17 @@ void main() {
       expect(over.clientSeed, 'alpha:beta');
       final start = a.received.whereType<RoomStateMessage>().last;
       expect(start.room.matchId, over.matchId);
+      expect(start.room.players.first.avatar, 11);
+
+      var recent = await b.recentMatches();
+      for (var i = 0; i < 50 && recent.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        recent = await b.recentMatches();
+      }
+      expect(recent.single.matchId, over.matchId);
+      expect(recent.single.players.first.avatar, 11);
+      final bRank = over.ranking.indexOf(start.room.players.last.color!) + 1;
+      expect(recent.single.rank, bRank);
 
       final v = await a.verifyMatch(over.matchId);
       expect(v.serverSeed, over.serverSeed);

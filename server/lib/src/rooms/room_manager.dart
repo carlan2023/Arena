@@ -280,6 +280,7 @@ class RoomManager implements MatchHost {
         index: i,
         userId: p.userId,
         displayName: p.displayName,
+        avatar: p.avatar,
         clientSeed: p.clientSeed,
       );
       if (p.isBot) {
@@ -364,6 +365,7 @@ class RoomManager implements MatchHost {
       index: free,
       userId: conn.userId,
       displayName: conn.displayName,
+      avatar: conn.avatar,
       clientSeed: seed,
     );
     room.seats[free] = seat;
@@ -480,6 +482,9 @@ class RoomManager implements MatchHost {
             seat: s.index,
             userId: s.userId,
             color: s.color!.name,
+            displayName: s.displayName,
+            avatar: s.avatar,
+            isBot: s.isBot,
           ),
       ],
     );

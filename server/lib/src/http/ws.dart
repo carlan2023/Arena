@@ -15,7 +15,7 @@ import 'cors.dart';
 const int kMaxFrameLength = 16 * 1024;
 
 /// The identity behind a session token.
-typedef SocketUser = ({String id, String displayName});
+typedef SocketUser = ({String id, String displayName, int avatar});
 
 /// GET /v1/ws?token=... The token is checked before the upgrade.
 Handler webSocketRoute({
@@ -51,7 +51,12 @@ Handler webSocketRoute({
       );
     }
     final handler = webSocketHandler((WebSocketChannel channel, String? _) {
-      final conn = _SocketConnection(channel, user.id, user.displayName);
+      final conn = _SocketConnection(
+        channel,
+        user.id,
+        user.displayName,
+        user.avatar,
+      );
       final limiter = RateLimiter(
         limit: messagesPerSecond,
         window: const Duration(seconds: 1),
@@ -115,8 +120,12 @@ int? _cseqOf(String frame) {
 }
 
 class _SocketConnection extends Connection {
-  _SocketConnection(this._channel, String userId, String displayName)
-    : super(userId: userId, displayName: displayName);
+  _SocketConnection(
+    this._channel,
+    String userId,
+    String displayName,
+    int avatar,
+  ) : super(userId: userId, displayName: displayName, avatar: avatar);
 
   final WebSocketChannel _channel;
   bool closed = false;

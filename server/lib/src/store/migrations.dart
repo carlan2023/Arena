@@ -61,6 +61,14 @@ CREATE TABLE moves (
 );
 ''',
   ),
+  Migration(
+    id: 'server_002_player_profile',
+    sql: '''
+ALTER TABLE match_players ADD COLUMN display_name text NOT NULL DEFAULT '';
+ALTER TABLE match_players ADD COLUMN avatar smallint NOT NULL DEFAULT 0;
+CREATE INDEX matches_ended_idx ON matches (ended_at DESC) WHERE ended_at IS NOT NULL;
+''',
+  ),
 ];
 
 /// Any fixed number; identifies the migration advisory lock.

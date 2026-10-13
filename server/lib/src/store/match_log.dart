@@ -27,10 +27,20 @@ class MatchPlayerRecord {
     required this.seat,
     required this.userId,
     required this.color,
+    this.displayName = '',
+    this.avatar = 0,
+    this.isBot = false,
   });
   final int seat;
   final String userId;
   final String color;
+
+  /// The name and avatar shown in the game, kept for match history.
+  final String displayName;
+  final int avatar;
+
+  /// A bot from the start (bot seat fill), not one that took over later.
+  final bool isBot;
 }
 
 class MatchStartRecord {
@@ -155,6 +165,48 @@ abstract interface class MatchLog {
   Future<void> matchEnded(MatchEndRecord end);
   Future<StoredMatch?> loadMatch(String matchId);
   Future<List<MatchEventRecord>> events(String matchId);
+
+  /// The user's last [limit] ended matches, newest first (M3.3).
+  Future<List<RecentMatch>> recentMatches(String userId, {int limit = 20});
+}
+
+/// An ended match as the user's history shows it.
+class RecentMatch {
+  const RecentMatch({
+    required this.matchId,
+    required this.mode,
+    required this.stake,
+    required this.status,
+    required this.endedAt,
+    required this.players,
+  });
+  final String matchId;
+  final String mode;
+  final int stake;
+  final MatchStatus status;
+  final DateTime endedAt;
+  final List<RecentMatchPlayer> players;
+}
+
+class RecentMatchPlayer {
+  const RecentMatchPlayer({
+    required this.seat,
+    required this.userId,
+    required this.displayName,
+    required this.avatar,
+    required this.isBot,
+    this.place,
+  });
+  final int seat;
+  final String userId;
+  final String displayName;
+  final int avatar;
+
+  /// A bot played the seat at some point.
+  final bool isBot;
+
+  /// 1 is first. Null when the match was abandoned.
+  final int? place;
 }
 
 class InMemoryMatchLog implements MatchLog {
@@ -214,6 +266,38 @@ class InMemoryMatchLog implements MatchLog {
   @override
   Future<List<MatchEventRecord>> events(String matchId) async =>
       [...?_events[matchId]]..sort((a, b) => a.index.compareTo(b.index));
+
+  @override
+  Future<List<RecentMatch>> recentMatches(
+    String userId, {
+    int limit = 20,
+  }) async {
+    final list = [
+      for (final m in matches.values)
+        if (ends[m.matchId] != null && m.players.any((p) => p.userId == userId))
+          _recent(m, ends[m.matchId]!),
+    ]..sort((a, b) => b.endedAt.compareTo(a.endedAt));
+    return list.take(limit).toList();
+  }
+
+  RecentMatch _recent(MatchStartRecord m, MatchEndRecord end) => RecentMatch(
+    matchId: m.matchId,
+    mode: m.mode,
+    stake: m.stake,
+    status: end.status,
+    endedAt: end.endedAt,
+    players: [
+      for (final p in m.players)
+        RecentMatchPlayer(
+          seat: p.seat,
+          userId: p.userId,
+          displayName: p.displayName,
+          avatar: p.avatar,
+          isBot: p.isBot || end.botSeats.contains(p.seat),
+          place: end.places[p.seat],
+        ),
+    ],
+  );
 }
 
 /// The dice of every roll event, in order.

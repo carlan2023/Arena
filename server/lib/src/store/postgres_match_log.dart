@@ -58,14 +58,17 @@ ON CONFLICT (id) DO NOTHING'''),
       for (final p in m.players) {
         await tx.execute(
           Sql.named('''
-INSERT INTO match_players (match_id, seat, user_id, color)
-VALUES (@id:uuid, @seat:int4, @user, @color)
+INSERT INTO match_players (match_id, seat, user_id, color, display_name, avatar, is_bot)
+VALUES (@id:uuid, @seat:int4, @user, @color, @name, @avatar:int2, @bot:boolean)
 ON CONFLICT DO NOTHING'''),
           parameters: {
             'id': m.matchId,
             'seat': p.seat,
             'user': p.userId,
             'color': p.color,
+            'name': p.displayName,
+            'avatar': p.avatar,
+            'bot': p.isBot,
           },
         );
       }
@@ -172,5 +175,57 @@ WHERE match_id = @id:uuid ORDER BY idx'''),
           at: r[6] as DateTime,
         ),
     ];
+  }
+
+  @override
+  Future<List<RecentMatch>> recentMatches(
+    String userId, {
+    int limit = 20,
+  }) async {
+    final rows = await _pool.execute(
+      Sql.named('''
+SELECT m.id::text, m.mode, m.stake, m.status, m.ended_at,
+       p.seat, p.user_id, p.display_name, p.avatar, p.is_bot, p.finish_place
+FROM (
+  SELECT m.id FROM matches m
+  JOIN match_players me ON me.match_id = m.id AND me.user_id = @user
+  WHERE m.ended_at IS NOT NULL
+  ORDER BY m.ended_at DESC, m.id
+  LIMIT @limit:int4
+) recent
+JOIN matches m ON m.id = recent.id
+JOIN match_players p ON p.match_id = m.id
+ORDER BY m.ended_at DESC, m.id, p.seat'''),
+      parameters: {'user': userId, 'limit': limit},
+    );
+    final matches = <RecentMatch>[];
+    String? current;
+    for (final r in rows) {
+      final id = r[0] as String;
+      if (id != current) {
+        current = id;
+        matches.add(
+          RecentMatch(
+            matchId: id,
+            mode: r[1] as String,
+            stake: r[2] as int,
+            status: MatchStatus.values.byName(r[3] as String),
+            endedAt: (r[4] as DateTime).toUtc(),
+            players: [],
+          ),
+        );
+      }
+      matches.last.players.add(
+        RecentMatchPlayer(
+          seat: r[5] as int,
+          userId: r[6] as String,
+          displayName: r[7] as String,
+          avatar: r[8] as int,
+          isBot: r[9] as bool,
+          place: r[10] as int?,
+        ),
+      );
+    }
+    return matches;
   }
 }

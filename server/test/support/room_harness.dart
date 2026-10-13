@@ -16,7 +16,7 @@ List<Move> firstSequence(GameState state) {
 }
 
 class TestConnection extends Connection {
-  TestConnection(String userId, {String? name})
+  TestConnection(String userId, {String? name, super.avatar})
     : super(userId: userId, displayName: name ?? 'Player $userId');
 
   final List<ServerMessage> inbox = [];
