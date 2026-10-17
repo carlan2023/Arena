@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:arena_protocol/arena_protocol.dart';
 import 'package:arena_server/src/clock.dart';
+import 'package:arena_server/src/rooms/matchmaker.dart';
 import 'package:arena_server/src/rooms/room.dart';
 import 'package:arena_server/src/rooms/room_manager.dart';
 import 'package:arena_server/src/store/live_store.dart';
@@ -50,6 +51,7 @@ class Harness {
     InMemoryMatchLog? log,
     FakeClock? clock,
     int seed = 1,
+    (String, String)? Function(QueueKey key, Connection conn)? allowTable,
   }) : clock = clock ?? FakeClock(),
        live = live ?? InMemoryLiveRoomStore(),
        log = log ?? InMemoryMatchLog() {
@@ -60,6 +62,7 @@ class Harness {
       liveStore: this.live,
       matchLog: this.log,
       random: Random(seed),
+      allowTable: allowTable,
     );
   }
 

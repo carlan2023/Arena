@@ -25,6 +25,8 @@ class RoomSettings {
     this.reconnectGrace = const Duration(seconds: 60),
     this.botDelay = const Duration(milliseconds: 800),
     this.roomIdle = const Duration(minutes: 30),
+    this.botFill = const Duration(seconds: 20),
+    this.paidQueueTimeout = const Duration(seconds: 60),
     this.maxTimeouts = 3,
     this.publicBaseUrl = 'http://localhost:8080',
   });
@@ -33,6 +35,11 @@ class RoomSettings {
   final Duration reconnectGrace;
   final Duration botDelay;
   final Duration roomIdle;
+
+  /// Quick match: bots take the empty seats of a free or coin queue after
+  /// [botFill]; a paid queue gives up after [paidQueueTimeout] (D39).
+  final Duration botFill;
+  final Duration paidQueueTimeout;
 
   /// Timed out decisions in a row before a bot takes the seat (free games)
   /// or the seat forfeits (paid games).
@@ -66,7 +73,13 @@ class RoomManager implements MatchHost {
        matchLog = matchLog ?? InMemoryMatchLog(),
        _random = random ?? Random.secure(),
        _logError = logError ?? _printError {
-    matchmaker = Matchmaker(clock: clock, host: this, allowTable: allowTable);
+    matchmaker = Matchmaker(
+      clock: clock,
+      host: this,
+      allowTable: allowTable,
+      botFill: settings.botFill,
+      paidTimeout: settings.paidQueueTimeout,
+    );
   }
 
   /// Quick match queues (M3.1).
@@ -269,7 +282,13 @@ class RoomManager implements MatchHost {
         displayName: p.displayName,
         clientSeed: p.clientSeed,
       );
-      _activeRoomOf[p.userId] = room.code;
+      if (p.isBot) {
+        room.seats[i]!
+          ..isBot = true
+          ..everBot = true;
+      } else {
+        _activeRoomOf[p.userId] = room.code;
+      }
     }
     room.idleTimer?.cancel();
     room.idleTimer = null;
@@ -470,7 +489,7 @@ class RoomManager implements MatchHost {
     _broadcastRoomState(room);
     // Players who dropped in the lobby start the game disconnected.
     for (final s in seated) {
-      if (!s.connected) _startGrace(room, s);
+      if (!s.connected && !s.isBot) _startGrace(room, s);
     }
     _checkAbandoned(room);
   }

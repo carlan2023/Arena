@@ -183,4 +183,114 @@ void main() {
     expect(a.lastError!.code, ErrorCodes.badRequest);
     expect(h.manager.matchmaker.isQueued('a'), isFalse);
   });
+
+  group('bot seat fill', () {
+    test('a lone 1v1 player gets a bot after 20 seconds', () async {
+      final a = h.connect('a');
+      queue(a);
+      final start = h.clock.nowMs();
+      expect(status(a).botFillAt, start + 20000);
+      expect(status(a).serverNow, start);
+      h.clock.advance(const Duration(seconds: 19));
+      expect(status(a).state, QueueState.waiting);
+      h.clock.advance(const Duration(seconds: 1));
+      expect(status(a).state, QueueState.matched);
+      expect(status(a).waited, 20);
+
+      final room = h.manager.room(status(a).roomCode!)!;
+      expect(room.status, RoomStatus.playing);
+      final bot = room.seated.last;
+      expect((bot.isBot, bot.everBot, bot.displayName), (true, true, 'Bot 2'));
+      expect(h.manager.activeRoomOf('a'), room.code);
+      expect(h.manager.activeRoomOf(bot.userId), isNull);
+
+      h.join(a, room.code);
+      final you = a.last<RoomStateMessage>().room.players;
+      expect(you.map((p) => p.isBot), [false, true]);
+      // The bot plays its own turns; after three timeouts one plays a's too.
+      for (var i = 0; i < 2000 && room.status == RoomStatus.playing; i++) {
+        h.clock.advance(const Duration(seconds: 20));
+      }
+      expect(room.status, RoomStatus.finished);
+      await h.manager.flush();
+      expect(h.log.ends.values.single.status, MatchStatus.finished);
+      expect(h.log.ends.values.single.botSeats, {0, 1});
+    });
+
+    test('the oldest player sets the time for their group of four', () {
+      final conns = [for (final u in 'abcdef'.split('')) h.connect(u)];
+      final start = h.clock.nowMs();
+      queue(conns[0], mode: GameMode.freeForAll);
+      h.clock.advance(const Duration(seconds: 5));
+      queue(conns[1], mode: GameMode.freeForAll);
+      expect(status(conns[1]).botFillAt, start + 20000);
+
+      h.clock.advance(const Duration(seconds: 15));
+      final code = status(conns[0]).roomCode!;
+      expect(status(conns[1]).roomCode, code);
+      final room = h.manager.room(code)!;
+      expect(room.seated.map((s) => s.isBot), [false, false, true, true]);
+      expect(h.manager.matchmaker.isQueued('b'), isFalse);
+
+      queue(conns[2], mode: GameMode.freeForAll);
+      expect(status(conns[2]).botFillAt, h.clock.nowMs() + 20000);
+    });
+
+    test('a group that fills up before the time needs no bots', () {
+      final conns = [for (final u in 'abcde'.split('')) h.connect(u)];
+      for (final c in conns) {
+        queue(c, mode: GameMode.freeForAll);
+      }
+      final room = h.manager.room(status(conns[0]).roomCode!)!;
+      expect(room.seated.where((s) => s.isBot), isEmpty);
+      // The fifth player is first in the queue now, so their own time counts.
+      expect(status(conns[4]).botFillAt, h.clock.nowMs() + 20000);
+      h.clock.advance(const Duration(seconds: 20));
+      expect(status(conns[4]).state, QueueState.matched);
+    });
+
+    test('a player who leaves before the time gets no game', () {
+      final a = h.connect('a');
+      queue(a);
+      h.send(a, (n) => QueueLeaveMessage(cseq: n));
+      h.clock.advance(const Duration(seconds: 30));
+      expect(status(a).state, QueueState.cancelled);
+      expect(h.manager.rooms, isEmpty);
+    });
+
+    test(
+      'a bot game the player never joins is abandoned after the grace',
+      () async {
+        final a = h.connect('a');
+        queue(a);
+        h.clock.advance(const Duration(seconds: 20));
+        final room = h.manager.room(status(a).roomCode!)!;
+        h.clock.advance(const Duration(seconds: 61));
+        expect(room.status, RoomStatus.finished);
+        await h.manager.flush();
+        expect(h.log.ends.values.single.status, MatchStatus.abandoned);
+      },
+    );
+
+    test('BOT_FILL_SECONDS sets the time', () {
+      h = Harness(settings: const RoomSettings(botFill: Duration(seconds: 5)));
+      final a = h.connect('a');
+      queue(a);
+      h.clock.advance(const Duration(seconds: 5));
+      expect(status(a).state, QueueState.matched);
+    });
+
+    test('paid queues get no bots and time out after 60 seconds', () {
+      h = Harness(allowTable: (_, _) => null);
+      final a = h.connect('a');
+      queue(a, stake: 1000);
+      expect(status(a).botFillAt, isNull);
+      h.clock.advance(const Duration(seconds: 59));
+      expect(status(a).state, QueueState.waiting);
+      h.clock.advance(const Duration(seconds: 1));
+      expect(status(a).state, QueueState.timeout);
+      expect(h.manager.matchmaker.isQueued('a'), isFalse);
+      expect(h.manager.rooms, isEmpty);
+    });
+  });
 }

@@ -68,6 +68,8 @@ class ServerConfig {
     this.reconnectGrace = const Duration(seconds: 60),
     this.botDelay = const Duration(milliseconds: 800),
     this.roomIdle = const Duration(minutes: 30),
+    this.botFill = const Duration(seconds: 20),
+    this.paidQueueTimeout = const Duration(seconds: 60),
     this.liveRoomTtl = const Duration(hours: 6),
     this.roomCreatesPerHour = 10,
     this.guestsPerHour = 30,
@@ -92,6 +94,7 @@ class ServerConfig {
     Duration reconnectGrace = const Duration(seconds: 60),
     Duration botDelay = const Duration(milliseconds: 800),
     Duration roomIdle = const Duration(minutes: 30),
+    Duration botFill = const Duration(seconds: 20),
     int roomCreatesPerHour = 10,
     int guestsPerHour = 1000,
     int wsMessagesPerSecond = 20,
@@ -108,6 +111,7 @@ class ServerConfig {
       reconnectGrace: reconnectGrace,
       botDelay: botDelay,
       roomIdle: roomIdle,
+      botFill: botFill,
       roomCreatesPerHour: roomCreatesPerHour,
       guestsPerHour: guestsPerHour,
       wsMessagesPerSecond: wsMessagesPerSecond,
@@ -205,6 +209,8 @@ class ServerConfig {
       reconnectGrace: Duration(seconds: intOf('RECONNECT_GRACE_SECONDS', 60)),
       botDelay: Duration(milliseconds: intOf('BOT_DELAY_MS', 800)),
       roomIdle: Duration(minutes: intOf('ROOM_IDLE_MINUTES', 30)),
+      botFill: Duration(seconds: intOf('BOT_FILL_SECONDS', 20)),
+      paidQueueTimeout: Duration(seconds: intOf('PAID_QUEUE_SECONDS', 60)),
       liveRoomTtl: Duration(hours: intOf('LIVE_ROOM_TTL_HOURS', 6)),
       roomCreatesPerHour: intOf('ROOM_CREATES_PER_HOUR', 10),
       guestsPerHour: intOf('GUESTS_PER_HOUR', 30),
@@ -252,6 +258,13 @@ class ServerConfig {
   final Duration reconnectGrace;
   final Duration botDelay;
   final Duration roomIdle;
+
+  /// How long a free or coin quick match queue waits before bots take the
+  /// empty seats (D39).
+  final Duration botFill;
+
+  /// How long a paid quick match queue waits before giving up (D39).
+  final Duration paidQueueTimeout;
   final Duration liveRoomTtl;
   final int roomCreatesPerHour;
 

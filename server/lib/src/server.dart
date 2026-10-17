@@ -231,6 +231,8 @@ Future<RunningServer> startServer(
       reconnectGrace: config.reconnectGrace,
       botDelay: config.botDelay,
       roomIdle: config.roomIdle,
+      botFill: config.botFill,
+      paidQueueTimeout: config.paidQueueTimeout,
       publicBaseUrl: config.publicBaseUrl,
     ),
     liveStore: liveStore,
