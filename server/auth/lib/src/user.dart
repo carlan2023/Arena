@@ -8,6 +8,9 @@ class User {
   /// E.164, for example +256772123456. Empty when the login had no phone.
   final String phone;
   final String displayName;
+
+  /// One of the [avatarCount] preset avatars (D35).
+  final int avatar;
   final DateTime createdAt;
 
   const User({
@@ -15,15 +18,17 @@ class User {
     required this.phone,
     required this.displayName,
     required this.createdAt,
+    this.avatar = 0,
   });
 
   /// A guest has no verified phone and may only play free games.
   bool get isGuest => phone.isEmpty;
 
-  User copyWith({String? displayName}) => User(
+  User copyWith({String? displayName, int? avatar}) => User(
     id: id,
     phone: phone,
     displayName: displayName ?? this.displayName,
+    avatar: avatar ?? this.avatar,
     createdAt: createdAt,
   );
 
@@ -33,10 +38,11 @@ class User {
       other.id == id &&
       other.phone == phone &&
       other.displayName == displayName &&
+      other.avatar == avatar &&
       other.createdAt == createdAt;
 
   @override
-  int get hashCode => Object.hash(id, phone, displayName, createdAt);
+  int get hashCode => Object.hash(id, phone, displayName, avatar, createdAt);
 
   @override
   String toString() => 'User($id, $phone, $displayName)';
@@ -52,7 +58,25 @@ abstract interface class UserStore {
   /// 1 to 24 characters after trimming, else ArgumentError. StateError for an
   /// unknown id.
   Future<User> setDisplayName(String id, String displayName);
+
+  /// 0 to [avatarCount] - 1, else ArgumentError. StateError for an unknown id.
+  Future<User> setAvatar(String id, int avatar);
 }
+
+/// Preset avatars, numbered 0 to 15 (D35). No photo upload.
+const avatarCount = 16;
+
+/// Throws ArgumentError unless [avatar] is a preset number.
+int checkAvatar(int avatar) {
+  if (avatar < 0 || avatar >= avatarCount) {
+    throw ArgumentError.value(avatar, 'avatar', 'must be 0 to 15');
+  }
+  return avatar;
+}
+
+/// The avatar a new account starts with, at random so a room of new players
+/// does not all look the same.
+int randomAvatar() => _random.nextInt(avatarCount);
 
 /// "Player " plus the last 4 digits of the phone, or the last 4 characters of
 /// the uid when there is no phone.
@@ -119,6 +143,7 @@ class InMemoryUserStore implements UserStore {
       id: newUserId(),
       phone: phone,
       displayName: defaultDisplayName(identity),
+      avatar: randomAvatar(),
       createdAt: _clock().toUtc(),
     );
     _byId[user.id] = user;
@@ -135,5 +160,13 @@ class InMemoryUserStore implements UserStore {
     final user = _byId[id];
     if (user == null) throw StateError('Unknown user $id');
     return _byId[id] = user.copyWith(displayName: name);
+  }
+
+  @override
+  Future<User> setAvatar(String id, int avatar) async {
+    checkAvatar(avatar);
+    final user = _byId[id];
+    if (user == null) throw StateError('Unknown user $id');
+    return _byId[id] = user.copyWith(avatar: avatar);
   }
 }

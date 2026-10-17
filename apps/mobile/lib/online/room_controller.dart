@@ -323,6 +323,7 @@ class RoomController extends Notifier<RoomScreenView> implements TableActions {
                     seat: p.seat,
                     userId: p.userId,
                     displayName: p.displayName,
+                    avatar: p.avatar,
                     color: p.color,
                     isBot: m.isBot,
                     connected: m.connected,
@@ -506,6 +507,7 @@ class RoomController extends Notifier<RoomScreenView> implements TableActions {
               SeatView(
                 color: color,
                 name: p.displayName,
+                avatar: p.avatar,
                 isBot: p.isBot,
                 connected: p.connected,
                 isYou: p.seat == you?.seat,

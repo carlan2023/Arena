@@ -17,4 +17,11 @@ CREATE UNIQUE INDEX users_uid_without_phone_key ON users (firebase_uid) WHERE ph
 CREATE INDEX users_firebase_uid_idx ON users (firebase_uid);
 ''',
   ),
+  Migration(
+    id: 'auth_002_avatar',
+    sql: '''
+ALTER TABLE users ADD COLUMN avatar smallint NOT NULL DEFAULT 0
+  CHECK (avatar BETWEEN 0 AND 15);
+''',
+  ),
 ];

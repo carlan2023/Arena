@@ -8,11 +8,15 @@ class UserView {
     required this.id,
     required this.phone,
     required this.displayName,
+    this.avatar = 0,
   });
 
   final String id;
   final String phone;
   final String displayName;
+
+  /// A preset avatar number, 0 to 15 (D35).
+  final int avatar;
 
   /// A guest has no verified phone and may only play free games (D33).
   bool get isGuest => phone.isEmpty;
@@ -21,6 +25,7 @@ class UserView {
     'id': id,
     'phone': phone,
     'displayName': displayName,
+    'avatar': avatar,
     'isGuest': isGuest,
   };
 
@@ -28,6 +33,7 @@ class UserView {
     id: reqString(j, 'id'),
     phone: reqString(j, 'phone'),
     displayName: reqString(j, 'displayName'),
+    avatar: optInt(j, 'avatar') ?? 0,
   );
 }
 
@@ -40,11 +46,13 @@ class PlayerView {
     required this.color,
     required this.isBot,
     required this.connected,
+    this.avatar = 0,
   });
 
   final int seat;
   final String userId;
   final String displayName;
+  final int avatar;
 
   /// Null in the lobby; colours are given at the start.
   final PlayerColor? color;
@@ -55,6 +63,7 @@ class PlayerView {
     'seat': seat,
     'userId': userId,
     'displayName': displayName,
+    'avatar': avatar,
     'color': color?.name,
     'isBot': isBot,
     'connected': connected,
@@ -64,6 +73,7 @@ class PlayerView {
     seat: reqInt(j, 'seat'),
     userId: reqString(j, 'userId'),
     displayName: reqString(j, 'displayName'),
+    avatar: optInt(j, 'avatar') ?? 0,
     color: optColor(j, 'color'),
     isBot: reqBool(j, 'isBot'),
     connected: reqBool(j, 'connected'),
@@ -260,4 +270,89 @@ DateTime _parseDate(String s) {
   final d = DateTime.tryParse(s);
   if (d == null) throw ProtocolException('bad date $s');
   return d;
+}
+
+/// One player in a [RecentMatchView].
+class RecentPlayerView {
+  const RecentPlayerView({
+    required this.seat,
+    required this.displayName,
+    required this.avatar,
+    required this.isBot,
+    this.rank,
+  });
+
+  final int seat;
+  final String displayName;
+  final int avatar;
+  final bool isBot;
+
+  /// Finishing place, 1 is first. Null when the match was abandoned.
+  final int? rank;
+
+  Json toJson() => {
+    'seat': seat,
+    'displayName': displayName,
+    'avatar': avatar,
+    'isBot': isBot,
+    'rank': ?rank,
+  };
+
+  factory RecentPlayerView.fromJson(Json j) => RecentPlayerView(
+    seat: reqInt(j, 'seat'),
+    displayName: reqString(j, 'displayName'),
+    avatar: optInt(j, 'avatar') ?? 0,
+    isBot: reqBool(j, 'isBot'),
+    rank: optInt(j, 'rank'),
+  );
+}
+
+/// One entry of `GET /v1/matches/recent`, from the caller's point of view.
+class RecentMatchView {
+  const RecentMatchView({
+    required this.matchId,
+    required this.mode,
+    required this.stake,
+    required this.entry,
+    required this.abandoned,
+    required this.endedAt,
+    required this.players,
+    this.rank,
+  });
+
+  final String matchId;
+  final GameMode mode;
+  final int stake;
+  final int entry;
+  final bool abandoned;
+  final DateTime endedAt;
+
+  /// The caller's finishing place. Null when abandoned.
+  final int? rank;
+  final List<RecentPlayerView> players;
+
+  Json toJson() => {
+    'matchId': matchId,
+    'mode': mode.name,
+    'stake': stake,
+    'entry': entry,
+    'abandoned': abandoned,
+    'endedAt': endedAt.toUtc().toIso8601String(),
+    'rank': ?rank,
+    'players': [for (final p in players) p.toJson()],
+  };
+
+  factory RecentMatchView.fromJson(Json j) => RecentMatchView(
+    matchId: reqString(j, 'matchId'),
+    mode: parseMode(reqString(j, 'mode')),
+    stake: reqInt(j, 'stake'),
+    entry: optInt(j, 'entry') ?? 0,
+    abandoned: reqBool(j, 'abandoned'),
+    endedAt: DateTime.parse(reqString(j, 'endedAt')),
+    rank: optInt(j, 'rank'),
+    players: [
+      for (final p in reqList(j, 'players'))
+        RecentPlayerView.fromJson(p as Json),
+    ],
+  );
 }

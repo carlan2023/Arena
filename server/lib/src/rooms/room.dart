@@ -8,10 +8,15 @@ import '../clock.dart';
 
 /// One open web socket, as the room manager sees it.
 abstract class Connection {
-  Connection({required this.userId, required this.displayName});
+  Connection({
+    required this.userId,
+    required this.displayName,
+    this.avatar = 0,
+  });
 
   final String userId;
   final String displayName;
+  final int avatar;
 
   /// Code of the room this socket is bound to by join_room.
   String? roomCode;
@@ -28,12 +33,14 @@ class Seat {
     required this.index,
     required this.userId,
     required this.displayName,
+    this.avatar = 0,
     this.clientSeed,
   });
 
   final int index;
   final String userId;
   String displayName;
+  final int avatar;
   final String? clientSeed;
 
   PlayerColor? color;
@@ -53,6 +60,7 @@ class Seat {
     'index': index,
     'userId': userId,
     'displayName': displayName,
+    'avatar': avatar,
     'clientSeed': clientSeed,
     'color': color?.name,
     'isBot': isBot,
@@ -66,6 +74,7 @@ class Seat {
       index: j['index'] as int,
       userId: j['userId'] as String,
       displayName: j['displayName'] as String,
+      avatar: j['avatar'] as int? ?? 0,
       clientSeed: j['clientSeed'] as String?,
     );
     final color = j['color'] as String?;
@@ -178,6 +187,7 @@ class Room {
           seat: s.index,
           userId: s.userId,
           displayName: s.displayName,
+          avatar: s.avatar,
           color: s.color,
           isBot: s.isBot,
           connected: s.connected,

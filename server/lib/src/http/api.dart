@@ -87,6 +87,7 @@ class Api {
     r.post('/v1/payments/callback/<provider>', _wrap(_callback, authed: false));
     r.put('/v1/payments/callback/<provider>', _wrap(_callback, authed: false));
     r.post('/v1/dev/payments/<id>/confirm', _wrap(_devConfirm));
+    r.get('/v1/matches/recent', _wrap(_recentMatches));
     r.get('/v1/matches/<id>/verify', _wrap(_verify));
     r.get(
       '/r/<code>',
@@ -197,11 +198,24 @@ class Api {
   Future<Object?> _patchMe(Request req, User? user, List<String> _) async {
     final body = await _body(req);
     final name = body['displayName'];
-    if (name is! String) {
-      throw HttpError(400, ErrorCodes.badRequest, 'displayName is required');
+    final avatar = body['avatar'];
+    if ((name == null && avatar == null) ||
+        (name != null && name is! String) ||
+        (avatar != null && avatar is! int)) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'send a displayName string, an avatar number, or both',
+      );
     }
     try {
-      return _user(await users.setDisplayName(user!.id, name));
+      // Both are checked before either is saved.
+      if (name is String) normalizeDisplayName(name);
+      if (avatar is int) checkAvatar(avatar);
+      var updated = user!;
+      if (name is String) updated = await users.setDisplayName(user.id, name);
+      if (avatar is int) updated = await users.setAvatar(user.id, avatar);
+      return _user(updated);
     } on ArgumentError catch (e) {
       throw HttpError(400, ErrorCodes.badRequest, '${e.message}');
     } on StateError catch (e) {
@@ -209,8 +223,44 @@ class Api {
     }
   }
 
-  Json _user(User u) =>
-      UserView(id: u.id, phone: u.phone, displayName: u.displayName).toJson();
+  Json _user(User u) => UserView(
+    id: u.id,
+    phone: u.phone,
+    displayName: u.displayName,
+    avatar: u.avatar,
+  ).toJson();
+
+  Future<Object?> _recentMatches(
+    Request req,
+    User? user,
+    List<String> _,
+  ) async {
+    final matches = await matchLog.recentMatches(user!.id);
+    return {
+      'matches': [
+        for (final m in matches)
+          RecentMatchView(
+            matchId: m.matchId,
+            mode: parseMode(m.mode),
+            stake: m.stake,
+            entry: 0,
+            abandoned: m.status == MatchStatus.abandoned,
+            endedAt: m.endedAt,
+            rank: m.players.where((p) => p.userId == user.id).first.place,
+            players: [
+              for (final p in m.players)
+                RecentPlayerView(
+                  seat: p.seat,
+                  displayName: p.displayName,
+                  avatar: p.avatar,
+                  isBot: p.isBot,
+                  rank: p.place,
+                ),
+            ],
+          ).toJson(),
+      ],
+    };
+  }
 
   // --- Rooms -----------------------------------------------------------------
 

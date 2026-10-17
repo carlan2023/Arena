@@ -41,6 +41,7 @@ class MatchedPlayer {
   const MatchedPlayer({
     required this.userId,
     required this.displayName,
+    this.avatar = 0,
     this.clientSeed,
     this.isBot = false,
   });
@@ -50,11 +51,13 @@ class MatchedPlayer {
   const MatchedPlayer.bot(int n)
     : userId = 'bot:$n',
       displayName = 'Bot ${n + 1}',
+      avatar = n,
       clientSeed = null,
       isBot = true;
 
   final String userId;
   final String displayName;
+  final int avatar;
   final String? clientSeed;
   final bool isBot;
 }
@@ -269,6 +272,7 @@ class Matchmaker {
         MatchedPlayer(
           userId: w.userId,
           displayName: w.conn.displayName,
+          avatar: w.conn.avatar,
           clientSeed: w.clientSeed,
         ),
       for (var i = group.length; i < key.seats; i++) MatchedPlayer.bot(i),

@@ -268,7 +268,11 @@ Future<RunningServer> startServer(
           final user = await api.userFor(token);
           return user == null
               ? null
-              : (id: user.id, displayName: user.displayName);
+              : (
+                  id: user.id,
+                  displayName: user.displayName,
+                  avatar: user.avatar,
+                );
         },
       ),
     );

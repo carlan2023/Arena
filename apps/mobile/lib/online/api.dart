@@ -14,6 +14,12 @@ abstract interface class ArenaApi {
   Future<Session> guest();
   Future<UserView> me(String token);
   Future<UserView> setDisplayName(String token, String name);
+
+  /// Changes the name, the avatar or both (M3.3).
+  Future<UserView> setProfile(String token, {String? name, int? avatar});
+
+  /// The player's last 20 ended matches, newest first.
+  Future<List<RecentMatchView>> recentMatches(String token);
   Future<RoomView> createRoom(
     String token, {
     required GameMode mode,
@@ -53,6 +59,14 @@ class HttpArenaApi implements ArenaApi {
   @override
   Future<UserView> setDisplayName(String token, String name) =>
       _client(token).setDisplayName(name);
+
+  @override
+  Future<UserView> setProfile(String token, {String? name, int? avatar}) =>
+      _client(token).setProfile(displayName: name, avatar: avatar);
+
+  @override
+  Future<List<RecentMatchView>> recentMatches(String token) =>
+      _client(token).recentMatches();
 
   @override
   Future<RoomView> createRoom(

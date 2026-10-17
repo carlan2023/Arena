@@ -21,6 +21,7 @@ void main() {
         seat: 0,
         userId: 'u1',
         displayName: 'A',
+        avatar: 7,
         color: PlayerColor.red,
         isBot: false,
         connected: true,
@@ -253,5 +254,37 @@ void main() {
       rolls: [(1, 2), (6, 6)],
     );
     expect(MatchVerification.fromJson(v.toJson()).rolls, v.rolls);
+    final r = RecentMatchView(
+      matchId: 'm',
+      mode: GameMode.freeForAll,
+      stake: 0,
+      entry: 50,
+      abandoned: false,
+      endedAt: DateTime.utc(2026, 10, 13, 9),
+      rank: 2,
+      players: const [
+        RecentPlayerView(seat: 0, displayName: 'A', avatar: 3, isBot: false),
+        RecentPlayerView(
+          seat: 1,
+          displayName: 'Bot 2',
+          avatar: 1,
+          isBot: true,
+          rank: 1,
+        ),
+      ],
+    );
+    expect(RecentMatchView.fromJson(r.toJson()).toJson(), r.toJson());
+  });
+
+  test('avatars are in User and Player, and default to 0', () {
+    const u = UserView(id: 'u', phone: '', displayName: 'G', avatar: 12);
+    expect(u.toJson()['avatar'], 12);
+    expect(UserView.fromJson(u.toJson()).avatar, 12);
+    expect(
+      UserView.fromJson({'id': 'u', 'phone': '', 'displayName': 'G'}).avatar,
+      0,
+    );
+    expect(RoomView.fromJson(room.toJson()).players.first.avatar, 7);
+    expect(room.players.last.toJson()['avatar'], 0);
   });
 }

@@ -132,4 +132,27 @@ void userStoreTests(
     }
     await expectLater(store.setDisplayName('nobody', 'Name'), throwsStateError);
   });
+
+  test('new users get a preset avatar, and setAvatar changes it', () async {
+    final user = await store.upsertByIdentity(
+      const VerifiedIdentity(uid: 'u', phoneNumber: '+256772123456'),
+    );
+    expect(user.avatar, inInclusiveRange(0, avatarCount - 1));
+    final changed = await store.setAvatar(user.id, 15);
+    expect(changed.avatar, 15);
+    expect(changed.displayName, user.displayName);
+    expect((await store.byId(user.id))!.avatar, 15);
+    final again = await store.upsertByIdentity(
+      const VerifiedIdentity(uid: 'u', phoneNumber: '+256772123456'),
+    );
+    expect(again.avatar, 15, reason: 'a later login keeps the choice');
+  });
+
+  test('setAvatar checks the number and the user', () async {
+    final user = await store.upsertByIdentity(const VerifiedIdentity(uid: 'g'));
+    for (final bad in [-1, 16, 100]) {
+      await expectLater(store.setAvatar(user.id, bad), throwsArgumentError);
+    }
+    await expectLater(store.setAvatar('nobody', 1), throwsStateError);
+  });
 }

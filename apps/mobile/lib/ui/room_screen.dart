@@ -9,6 +9,7 @@ import '../board/board_palette.dart';
 import '../game/local_game.dart' show colorName;
 import '../online/room_controller.dart';
 import 'game_table.dart';
+import 'avatar.dart';
 
 /// Sends the invite through the phone's share sheet (WhatsApp and others).
 typedef ShareText = Future<void> Function(String text);
@@ -217,11 +218,12 @@ class _Lobby extends ConsumerWidget {
         ),
         for (final p in room.players)
           ListTile(
-            leading: CircleAvatar(
-              backgroundColor: p.color == null
-                  ? Colors.grey
+            leading: ArenaAvatar(
+              avatar: p.avatar,
+              isBot: p.isBot,
+              background: p.color == null
+                  ? null
                   : BoardPalette.standard.player(p.color!.index),
-              child: Icon(p.isBot ? Icons.smart_toy : Icons.person),
             ),
             title: Text(
               p.seat == view.you?.seat
