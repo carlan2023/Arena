@@ -16,6 +16,7 @@ import 'package:arena_wallet/arena_wallet.dart' as wallet;
 import 'package:arena_wallet/arena_wallet.dart'
     show
         AirtelMoneyProvider,
+        CoinService,
         FakePaymentProvider,
         InMemoryLedger,
         InMemoryPaymentStore,
@@ -253,6 +254,7 @@ Future<RunningServer> startServer(
     paymentStore: paymentStore,
     rooms: rooms,
     matchLog: matchLog,
+    coins: CoinService(ledger: ledger, clock: now),
     fakePayments: fake,
   );
   final origins = OriginPolicy(config.allowedOrigins);

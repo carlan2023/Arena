@@ -99,6 +99,18 @@ class PostgresLedger implements Ledger {
     return PostResult(txId: txId, duplicate: false);
   }
 
+  @override
+  Future<Map<String, Object?>?> metadataFor(String idempotencyKey) async {
+    final result = await _pool.execute(
+      Sql.named(
+        'SELECT metadata FROM ledger_transactions WHERE idempotency_key = @key',
+      ),
+      parameters: {'key': idempotencyKey},
+    );
+    if (result.isEmpty) return null;
+    return (result.first[0]! as Map).cast<String, Object?>();
+  }
+
   static Future<String?> _txIdFor(Session s, String key) async {
     final result = await s.execute(
       Sql.named(

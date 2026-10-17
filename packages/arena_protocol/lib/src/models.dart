@@ -9,6 +9,7 @@ class UserView {
     required this.phone,
     required this.displayName,
     this.avatar = 0,
+    this.coins = 0,
   });
 
   final String id;
@@ -18,6 +19,9 @@ class UserView {
   /// A preset avatar number, 0 to 15 (D35).
   final int avatar;
 
+  /// Coin balance (D36). Play money, never cashed out.
+  final int coins;
+
   /// A guest has no verified phone and may only play free games (D33).
   bool get isGuest => phone.isEmpty;
 
@@ -26,6 +30,7 @@ class UserView {
     'phone': phone,
     'displayName': displayName,
     'avatar': avatar,
+    'coins': coins,
     'isGuest': isGuest,
   };
 
@@ -34,6 +39,7 @@ class UserView {
     phone: reqString(j, 'phone'),
     displayName: reqString(j, 'displayName'),
     avatar: optInt(j, 'avatar') ?? 0,
+    coins: optInt(j, 'coins') ?? 0,
   );
 }
 
@@ -354,5 +360,77 @@ class RecentMatchView {
       for (final p in reqList(j, 'players'))
         RecentPlayerView.fromJson(p as Json),
     ],
+  );
+}
+
+/// `dailyReward` in `GET /v1/coins`.
+class DailyRewardView {
+  const DailyRewardView({
+    required this.available,
+    required this.amount,
+    required this.streak,
+    required this.nextAt,
+  });
+
+  final bool available;
+
+  /// What the next claim gives.
+  final int amount;
+
+  /// Days in a row claimed so far; 0 after a missed day.
+  final int streak;
+  final DateTime nextAt;
+
+  Json toJson() => {
+    'available': available,
+    'amount': amount,
+    'streak': streak,
+    'nextAt': nextAt.toUtc().toIso8601String(),
+  };
+
+  factory DailyRewardView.fromJson(Json j) => DailyRewardView(
+    available: reqBool(j, 'available'),
+    amount: reqInt(j, 'amount'),
+    streak: reqInt(j, 'streak'),
+    nextAt: DateTime.parse(reqString(j, 'nextAt')),
+  );
+}
+
+/// `GET /v1/coins`.
+class CoinsView {
+  const CoinsView({required this.balance, required this.dailyReward});
+
+  final int balance;
+  final DailyRewardView dailyReward;
+
+  Json toJson() => {'balance': balance, 'dailyReward': dailyReward.toJson()};
+
+  factory CoinsView.fromJson(Json j) => CoinsView(
+    balance: reqInt(j, 'balance'),
+    dailyReward: DailyRewardView.fromJson(switch (j['dailyReward']) {
+      final Map<String, Object?> m => m,
+      _ => throw ProtocolException('dailyReward must be an object'),
+    }),
+  );
+}
+
+/// `POST /v1/coins/daily`, and `POST /v1/tutorial/complete` without a streak.
+class CoinGrantView {
+  const CoinGrantView({
+    required this.balance,
+    required this.granted,
+    this.streak,
+  });
+
+  final int balance;
+  final int granted;
+  final int? streak;
+
+  Json toJson() => {'balance': balance, 'granted': granted, 'streak': ?streak};
+
+  factory CoinGrantView.fromJson(Json j) => CoinGrantView(
+    balance: reqInt(j, 'balance'),
+    granted: reqInt(j, 'granted'),
+    streak: optInt(j, 'streak'),
   );
 }

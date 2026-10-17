@@ -20,6 +20,12 @@ abstract interface class ArenaApi {
 
   /// The player's last 20 ended matches, newest first.
   Future<List<RecentMatchView>> recentMatches(String token);
+
+  /// Coin balance and the daily reward (M3.4).
+  Future<CoinsView> coins(String token);
+
+  /// Throws [ApiError] already_claimed when today's reward was claimed.
+  Future<CoinGrantView> claimDailyReward(String token);
   Future<RoomView> createRoom(
     String token, {
     required GameMode mode,
@@ -67,6 +73,13 @@ class HttpArenaApi implements ArenaApi {
   @override
   Future<List<RecentMatchView>> recentMatches(String token) =>
       _client(token).recentMatches();
+
+  @override
+  Future<CoinsView> coins(String token) => _client(token).coins();
+
+  @override
+  Future<CoinGrantView> claimDailyReward(String token) =>
+      _client(token).claimDailyReward();
 
   @override
   Future<RoomView> createRoom(

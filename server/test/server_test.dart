@@ -104,6 +104,35 @@ void main() {
       expect((await phoneUser.request('GET', '/v1/wallet'))['balance'], 0);
     });
 
+    test('coins: 500 on signup, the daily reward once a day', () async {
+      final g = ArenaClient(baseUrl: server.baseUrl);
+      clients.add(g);
+      final user = await g.guest();
+      expect(user.coins, 500);
+      var coins = await g.coins();
+      expect(coins.balance, 500);
+      expect(coins.dailyReward.available, isTrue);
+      expect(coins.dailyReward.amount, 100);
+
+      final grant = await g.claimDailyReward();
+      expect((grant.granted, grant.streak, grant.balance), (100, 1, 600));
+      coins = await g.coins();
+      expect(coins.dailyReward.available, isFalse);
+      expect(coins.dailyReward.amount, 120);
+      expect(coins.dailyReward.nextAt.isAfter(DateTime.now()), isTrue);
+      await expectLater(
+        g.claimDailyReward(),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.status, 'status', 409)
+              .having((e) => e.code, 'code', 'already_claimed'),
+        ),
+      );
+      expect((await g.me()).coins, 600, reason: 'no second signup grant');
+      final again = await loggedIn('+256772000003');
+      expect(again.user!.coins, 500);
+    });
+
     test('guest accounts are rate limited per address', () async {
       await server.close();
       server = await startServer(

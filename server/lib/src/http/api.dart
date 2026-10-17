@@ -37,6 +37,7 @@ class Api {
     required this.paymentStore,
     required this.rooms,
     required this.matchLog,
+    required this.coins,
     this.fakePayments,
   }) : _roomCreates = RateLimiter(
          limit: config.roomCreatesPerHour,
@@ -58,6 +59,7 @@ class Api {
   final PaymentStore paymentStore;
   final RoomManager rooms;
   final MatchLog matchLog;
+  final CoinService coins;
 
   /// Set when PAYMENTS_PROVIDER=fake; enables the dev confirm route.
   final FakePaymentProvider? fakePayments;
@@ -77,6 +79,8 @@ class Api {
     r.post('/v1/auth/guest', _wrap(_guest, authed: false));
     r.get('/v1/me', _wrap(_me));
     r.patch('/v1/me', _wrap(_patchMe));
+    r.get('/v1/coins', _wrap(_coins));
+    r.post('/v1/coins/daily', _wrap(_claimDaily));
     r.post('/v1/rooms', _wrap(_createRoom));
     r.get('/v1/rooms/<code>', _wrap(_getRoom));
     r.get('/v1/wallet', _wrap(_wallet));
@@ -158,7 +162,7 @@ class Api {
     }
     try {
       final (token, user) = await auth.login(idToken);
-      return {'sessionToken': token, 'user': _user(user)};
+      return {'sessionToken': token, 'user': await _user(user)};
     } on AuthException catch (e) {
       throw HttpError(401, ErrorCodes.unauthorized, e.message);
     }
@@ -170,7 +174,7 @@ class Api {
       throw HttpError(429, ErrorCodes.rateLimited, 'too many guest accounts');
     }
     final (token, user) = await auth.guest();
-    return {'sessionToken': token, 'user': _user(user)};
+    return {'sessionToken': token, 'user': await _user(user)};
   }
 
   String _clientAddress(Request req) {
@@ -193,7 +197,7 @@ class Api {
     }
   }
 
-  Object? _me(Request req, User? user, List<String> _) => _user(user!);
+  Future<Object?> _me(Request req, User? user, List<String> _) => _user(user!);
 
   Future<Object?> _patchMe(Request req, User? user, List<String> _) async {
     final body = await _body(req);
@@ -215,7 +219,7 @@ class Api {
       var updated = user!;
       if (name is String) updated = await users.setDisplayName(user.id, name);
       if (avatar is int) updated = await users.setAvatar(user.id, avatar);
-      return _user(updated);
+      return await _user(updated);
     } on ArgumentError catch (e) {
       throw HttpError(400, ErrorCodes.badRequest, '${e.message}');
     } on StateError catch (e) {
@@ -223,12 +227,51 @@ class Api {
     }
   }
 
-  Json _user(User u) => UserView(
-    id: u.id,
-    phone: u.phone,
-    displayName: u.displayName,
-    avatar: u.avatar,
-  ).toJson();
+  /// The user with their coin balance. The signup grant (D36) is made here,
+  /// once per account, so accounts from before coins existed get it too.
+  Future<Json> _user(User u) async {
+    await coins.grantSignup(u.id);
+    return UserView(
+      id: u.id,
+      phone: u.phone,
+      displayName: u.displayName,
+      avatar: u.avatar,
+      coins: await coins.balance(u.id),
+    ).toJson();
+  }
+
+  // --- Coins (M3.4) ------------------------------------------------------------
+
+  Future<Object?> _coins(Request req, User? user, List<String> _) async {
+    await coins.grantSignup(user!.id);
+    final daily = await coins.dailyStatus(user.id);
+    return CoinsView(
+      balance: await coins.balance(user.id),
+      dailyReward: DailyRewardView(
+        available: daily.available,
+        amount: daily.amount,
+        streak: daily.streak,
+        nextAt: daily.nextAt,
+      ),
+    ).toJson();
+  }
+
+  Future<Object?> _claimDaily(Request req, User? user, List<String> _) async {
+    try {
+      final grant = await coins.claimDaily(user!.id);
+      return CoinGrantView(
+        balance: grant.balance,
+        granted: grant.granted,
+        streak: grant.streak,
+      ).toJson();
+    } on AlreadyClaimedException catch (e) {
+      throw HttpError(
+        409,
+        ErrorCodes.alreadyClaimed,
+        'already claimed today; next at ${e.nextAt.toIso8601String()}',
+      );
+    }
+  }
 
   Future<Object?> _recentMatches(
     Request req,

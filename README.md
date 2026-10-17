@@ -244,7 +244,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | M3.1 | Quick match queue for 1v1 and four players | Done | 13 Oct 2026 |
 | M3.2 | Bots fill empty seats in free games after 20 seconds | Done | 13 Oct 2026 |
 | M3.3 | Profiles and avatars | Done | 13 Oct 2026 |
-| M3.4 | Coins and daily reward | Not started | |
+| M3.4 | Coins and daily reward. Coin balance, signup coins and daily reward done; coin tables next | In progress | |
 | M3.5 | Luganda translation | Not started | |
 | M3.6 | Sound and vibration | Not started | |
 | M3.7 | Interactive tutorial | Not started | |
@@ -313,6 +313,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 13 Oct 2026 | M3.1 | Quick match for 1v1 and four player free for all (D49). New queue_join, queue_leave and queue_status messages. The server keeps a queue per mode and table and starts a room as soon as one is full, with every matched player seated. The home screen has Quick match 1v1 and Quick match 4 buttons; the search screen shows players found, time waited and a cancel button, reconnects and queues again if the connection drops, then opens the room. Free tables only until coins and paid tables arrive |
 | 13 Oct 2026 | M3.2 | Bots fill empty quick match seats (D50). A free 1v1 or four player search that has not filled after 20 seconds (BOT_FILL_SECONDS) starts with normal level bots, shown with a robot icon and named Bot 2, Bot 3 and so on. The search screen counts down to it. Paid searches never get bots and give up after 60 seconds (PAID_QUEUE_SECONDS) |
 | 13 Oct 2026 | M3.3 | Profiles (D51). A profile screen from the home screen with the player's name, a choice of 16 preset avatars and their last 20 games. Avatars show in the lobby and on the seat cards at the board. The server stores the avatar with the account, keeps each player's name and avatar in the match log, and adds GET /v1/matches/recent. PATCH /v1/me now takes a name, an avatar or both |
+| 13 Oct 2026 | M3.4 | Coins, part 1 (D52). Every account gets 500 coins once. A daily reward of 100 coins rises by 20 a day in a row up to 220, and resets after a missed day, counted in Kampala days. New GET /v1/coins and POST /v1/coins/daily routes, with a claim made twice at once granting once. The home screen shows the coin balance with a Claim button, or the time to the next reward |
 
 ## 5. Scope of the first release
 

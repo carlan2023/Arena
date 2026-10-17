@@ -76,7 +76,7 @@ void main() {
     await tester.enterText(find.byKey(const Key('code')), '123456');
     await tester.tap(find.byKey(const Key('login-next')));
     await settle(tester);
-    expect(app.api.calls, ['login fake:+256772000001']);
+    expect(app.api.actions, ['login fake:+256772000001']);
     expect(find.byKey(const Key('name')), findsOneWidget);
 
     await tester.enterText(find.byKey(const Key('name')), 'Amina');
@@ -108,7 +108,7 @@ void main() {
     expect(find.byKey(const Key('phone')), findsNothing);
     expect(find.byType(RoomScreen), findsOneWidget);
     expect(find.text('Room ABC234'), findsOneWidget);
-    expect(app.api.calls, ['guest']);
+    expect(app.api.actions, ['guest']);
     expect(app.connector.tokens, ['guest-tok']);
     await app.stop();
   });
@@ -120,7 +120,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('1 v 1'));
     await settle(tester);
-    expect(app.api.calls, ['guest', 'create guest-tok oneVsOne 2']);
+    expect(app.api.actions, ['guest', 'create guest-tok oneVsOne 2']);
     expect(find.byType(RoomScreen), findsOneWidget);
     await app.stop();
   });
@@ -223,7 +223,7 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('2 v 2 teams'));
     await settle(tester);
-    expect(app.api.calls, ['create tok-1 teams 4']);
+    expect(app.api.actions, ['create tok-1 teams 4']);
     expect(find.text('Room ABC234'), findsOneWidget);
     await app.stop();
   });
@@ -282,7 +282,7 @@ void main() {
     await app.start(loggedIn: false);
     await tester.tap(find.byKey(const Key('quick-1v1')));
     await settle(tester);
-    expect(app.api.calls, ['guest']);
+    expect(app.api.actions, ['guest']);
     final join = app.connector.last.sent.single as QueueJoinMessage;
     expect((join.mode, join.entry, join.stake), (GameMode.oneVsOne, 0, 0));
     expect(join.clientSeed, isNotNull);
@@ -400,6 +400,36 @@ void main() {
     await app.stop();
   });
 
+  testWidgets('home shows coins and claims the daily reward once', (
+    tester,
+  ) async {
+    final app = App(tester);
+    await app.start();
+    expect(find.text('500 coins'), findsOneWidget);
+    expect(find.text('Daily reward: 100 coins'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('claim-daily')));
+    await settle(tester);
+    expect(app.api.calls, ['coins tok-1', 'daily tok-1', 'coins tok-1']);
+    expect(find.text('+100 coins. Day 1 in a row!'), findsOneWidget);
+    expect(find.text('600 coins'), findsOneWidget);
+    expect(find.text('Next reward in 5 h 29 min'), findsOneWidget);
+    expect(find.byKey(const Key('claim-daily')), findsNothing);
+    await app.stop();
+  });
+
+  testWidgets('no coins card before the player goes online', (tester) async {
+    final app = App(tester);
+    await app.start(loggedIn: false);
+    expect(find.byKey(const Key('coins-card')), findsNothing);
+    expect(app.api.calls, isEmpty);
+    await tester.tap(find.byKey(const Key('profile')));
+    await settle(tester);
+    await tester.pageBack();
+    await settle(tester);
+    expect(find.text('500 coins'), findsOneWidget);
+    await app.stop();
+  });
+
   group('profile', () {
     RecentMatchView recent({int? rank, bool abandoned = false}) =>
         RecentMatchView(
@@ -463,7 +493,7 @@ void main() {
       await tester.enterText(find.byKey(const Key('profile-name')), 'Nakato ');
       await tester.tap(find.byKey(const Key('save-name')));
       await settle(tester);
-      expect(app.api.calls.last, 'profile tok-1 Nakato -');
+      expect(app.api.actions.last, 'profile tok-1 Nakato -');
       expect(find.text('Name saved'), findsOneWidget);
 
       await tester.pageBack();
@@ -486,7 +516,7 @@ void main() {
       await app.start(loggedIn: false);
       await tester.tap(find.byKey(const Key('profile')));
       await settle(tester);
-      expect(app.api.calls, ['guest', 'recent guest-tok']);
+      expect(app.api.actions, ['guest', 'recent guest-tok']);
       expect(find.byKey(const Key('recent-empty')), findsOneWidget);
       expect(find.textContaining('playing as a guest'), findsOneWidget);
       expect(
