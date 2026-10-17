@@ -254,6 +254,115 @@ void main() {
     await app.stop();
   });
 
+  QueueStatusMessage queueStatus(
+    QueueState state, {
+    int found = 1,
+    int needed = 2,
+    int waited = 0,
+    String? roomCode,
+    int? botFillAt,
+  }) => QueueStatusMessage(
+    state: state,
+    mode: needed == 2 ? GameMode.oneVsOne : GameMode.freeForAll,
+    entry: 0,
+    stake: 0,
+    waited: waited,
+    playersFound: found,
+    playersNeeded: needed,
+    roomCode: roomCode,
+    botFillAt: botFillAt,
+    serverNow: now,
+  );
+
+  testWidgets('quick match searches, then opens the matched room', (
+    tester,
+  ) async {
+    final app = App(tester);
+    await app.start(loggedIn: false);
+    await tester.tap(find.byKey(const Key('quick-1v1')));
+    await settle(tester);
+    expect(app.api.calls, ['guest']);
+    final join = app.connector.last.sent.single as QueueJoinMessage;
+    expect((join.mode, join.entry, join.stake), (GameMode.oneVsOne, 0, 0));
+    expect(join.clientSeed, isNotNull);
+
+    await app.receive(queueStatus(QueueState.waiting, waited: 65));
+    expect(find.text('1 of 2 players found'), findsOneWidget);
+    expect(find.text('Waiting 1:05'), findsOneWidget);
+    expect(find.byKey(const Key('bot-fill')), findsNothing);
+
+    final queueSocket = app.connector.last;
+    await app.receive(
+      queueStatus(QueueState.matched, found: 2, roomCode: code),
+    );
+    expect(queueSocket.closed, isTrue);
+    expect(find.byType(RoomScreen), findsOneWidget);
+    final roomJoin = app.connector.last.sent.single as JoinRoomMessage;
+    expect(roomJoin.roomCode, code);
+    await app.stop();
+  });
+
+  testWidgets('a four player search shows the bot countdown and cancels', (
+    tester,
+  ) async {
+    final app = App(tester);
+    await app.start();
+    await tester.tap(find.byKey(const Key('quick-4')));
+    await settle(tester);
+    await app.receive(
+      queueStatus(
+        QueueState.waiting,
+        found: 3,
+        needed: 4,
+        botFillAt: now + 15500,
+      ),
+    );
+    expect(find.text('3 of 4 players found'), findsOneWidget);
+    expect(find.textContaining('Bots take the empty seats in 1'), findsOne);
+    final socket = app.connector.last;
+    await tester.tap(find.byKey(const Key('cancel-search')));
+    await settle(tester);
+    expect(socket.sent.last, isA<QueueLeaveMessage>());
+    expect(socket.closed, isTrue);
+    expect(find.byKey(const Key('quick-4')), findsOneWidget);
+    await app.stop();
+  });
+
+  testWidgets('a refused search says why', (tester) async {
+    final app = App(tester);
+    await app.start();
+    await tester.tap(find.byKey(const Key('quick-1v1')));
+    await settle(tester);
+    await app.receive(
+      const ErrorMessage(code: 'queue_busy', message: 'x', ref: 1),
+    );
+    expect(
+      find.text('You are already in a game or another search'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('back-home')));
+    await settle(tester);
+    expect(find.byKey(const Key('quick-1v1')), findsOneWidget);
+    await app.stop();
+  });
+
+  testWidgets('a dropped search socket reconnects and queues again', (
+    tester,
+  ) async {
+    final app = App(tester);
+    await app.start();
+    await tester.tap(find.byKey(const Key('quick-1v1')));
+    await settle(tester);
+    app.connector.last.drop();
+    await settle(tester);
+    expect(find.text('Connecting to the server'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await settle(tester);
+    expect(app.connector.sockets, hasLength(2));
+    expect(app.connector.last.sent.single, isA<QueueJoinMessage>());
+    await app.stop();
+  });
+
   testWidgets('home leads to a pass and play game', (tester) async {
     final app = App(tester);
     await app.start();

@@ -186,6 +186,21 @@ class ArenaClient {
   int leaveRoom() => _sendMessage((c) => LeaveRoomMessage(cseq: c));
   int emote(String id) => _sendMessage((c) => EmoteMessage(id: id, cseq: c));
   int ping() => _sendMessage((c) => PingMessage(cseq: c));
+  int queueJoin({
+    GameMode mode = GameMode.oneVsOne,
+    int entry = 0,
+    int stake = 0,
+    String? clientSeed,
+  }) => _sendMessage(
+    (c) => QueueJoinMessage(
+      mode: mode,
+      entry: entry,
+      stake: stake,
+      clientSeed: clientSeed,
+      cseq: c,
+    ),
+  );
+  int queueLeave() => _sendMessage((c) => QueueLeaveMessage(cseq: c));
 
   /// Sends a raw frame, for tests of bad input.
   void sendRaw(String frame) {

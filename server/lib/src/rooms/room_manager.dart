@@ -9,6 +9,7 @@ import '../clock.dart';
 import '../ids.dart';
 import '../store/live_store.dart';
 import '../store/match_log.dart';
+import 'matchmaker.dart';
 import 'room.dart';
 
 /// Picks the full move list for the current roll (a bot).
@@ -51,7 +52,7 @@ class RoomException implements Exception {
 /// Owns every live room: seats, turns, dice, timers and reconnects. All game
 /// logic runs synchronously on the event loop; storage writes are queued per
 /// room in order and never block play.
-class RoomManager {
+class RoomManager implements MatchHost {
   RoomManager({
     required this.clock,
     required this.chooseMoves,
@@ -60,10 +61,16 @@ class RoomManager {
     MatchLog? matchLog,
     Random? random,
     ErrorLogger? logError,
+    (String, String)? Function(QueueKey key, Connection conn)? allowTable,
   }) : liveStore = liveStore ?? InMemoryLiveRoomStore(),
        matchLog = matchLog ?? InMemoryMatchLog(),
        _random = random ?? Random.secure(),
-       _logError = logError ?? _printError;
+       _logError = logError ?? _printError {
+    matchmaker = Matchmaker(clock: clock, host: this, allowTable: allowTable);
+  }
+
+  /// Quick match queues (M3.1).
+  late final Matchmaker matchmaker;
 
   final Clock clock;
   final MoveChooser chooseMoves;
@@ -228,11 +235,52 @@ class RoomManager {
       case EmoteMessage():
         final room = _boundRoom(conn, msg, quiet: true);
         if (room != null) _emote(conn, room, msg);
+      case QueueJoinMessage():
+        matchmaker.join(conn, msg);
+      case QueueLeaveMessage():
+        matchmaker.leave(conn, msg.cseq);
     }
+  }
+
+  @override
+  String? activeRoomOf(String userId) => _activeRoomOf[userId];
+
+  @override
+  void sendError(Connection conn, int? ref, String code, String message) =>
+      _error(conn, ref, code, message);
+
+  /// Creates a room for a quick match, seats [players] in order and starts
+  /// the game at once. Each player then joins it with join_room, which the
+  /// room treats as a reconnect, so a player who never arrives is handled
+  /// by the usual reconnect grace and timeouts.
+  @override
+  String startMatch(QueueKey key, List<MatchedPlayer> players) {
+    final room = createRoom(
+      ownerUserId: players.first.userId,
+      mode: key.mode,
+      seats: key.seats,
+      stake: key.stake,
+    );
+    for (var i = 0; i < players.length; i++) {
+      final p = players[i];
+      room.seats[i] = Seat(
+        index: i,
+        userId: p.userId,
+        displayName: p.displayName,
+        clientSeed: p.clientSeed,
+      );
+      _activeRoomOf[p.userId] = room.code;
+    }
+    room.idleTimer?.cancel();
+    room.idleTimer = null;
+    _start(room);
+    _persist(room);
+    return room.code;
   }
 
   /// A socket closed.
   void disconnected(Connection conn) {
+    matchmaker.disconnected(conn);
     final room = _rooms[conn.roomCode];
     conn.roomCode = null;
     if (room == null) return;

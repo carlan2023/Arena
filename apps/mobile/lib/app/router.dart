@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ludo_engine/ludo_engine.dart';
 
 import '../game/local_game.dart';
 import '../online/auth.dart';
 import '../online/config.dart';
+import '../online/quick_match.dart';
 import '../ui/home_screen.dart';
 import '../ui/local_game_screen.dart';
 import '../ui/local_setup_screen.dart';
 import '../ui/login_screen.dart';
+import '../ui/quick_match_screen.dart';
 import '../ui/room_screen.dart';
 
 /// Pages that never carry a `from` return address.
@@ -17,6 +20,13 @@ bool _isEntry(String path) =>
 
 String _withFrom(String path, String? from) =>
     from == null ? path : '$path?from=${Uri.encodeComponent(from)}';
+
+/// `/quick/oneVsOne` or `/quick/freeForAll`: free tables.
+QuickMatchTable? _quickTable(String mode) => switch (mode) {
+  'oneVsOne' => const QuickMatchTable(GameMode.oneVsOne),
+  'freeForAll' => const QuickMatchTable(GameMode.freeForAll),
+  _ => null,
+};
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier(0);
@@ -66,6 +76,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             state.extra is LocalGameConfig ? null : '/local',
         builder: (_, state) =>
             LocalGameScreen(config: state.extra! as LocalGameConfig),
+      ),
+      GoRoute(
+        path: '/quick/:mode',
+        redirect: (_, state) =>
+            _quickTable(state.pathParameters['mode']!) == null ? '/' : null,
+        builder: (_, state) => QuickMatchScreen(
+          table: _quickTable(state.pathParameters['mode']!)!,
+        ),
       ),
       GoRoute(
         path: '/room/:code',
