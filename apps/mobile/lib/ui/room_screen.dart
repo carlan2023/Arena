@@ -265,7 +265,7 @@ class _Results extends StatelessWidget {
     final won = me != null && over.winners.contains(me);
     final names = <PlayerColor, String>{
       for (final p in view.room?.players ?? const <PlayerView>[])
-        if (p.color case final c?) c: p.displayName,
+        ?p.color: p.displayName,
     };
     return ListView(
       padding: const EdgeInsets.all(24),

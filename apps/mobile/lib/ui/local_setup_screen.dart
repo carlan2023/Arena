@@ -33,8 +33,7 @@ class _LocalSetupScreenState extends State<LocalSetupScreen> {
 
   LocalGameConfig? get _config {
     final seats = <PlayerColor, SeatKind>{
-      for (final c in _colors)
-        if (_seats[c] case final kind?) c: kind,
+      for (final c in _colors) c: ?_seats[c],
     };
     if (seats.length < 2) return null;
     if (_mode == GameMode.teams && seats.length != 4) return null;
