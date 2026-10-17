@@ -25,6 +25,40 @@ void main() {
     });
   });
 
+  for (final (width, scale) in [
+    (320.0, 1.0),
+    (360.0, 1.0),
+    (412.0, 1.0),
+    (360.0, 1.3),
+    (320.0, 2.0),
+  ]) {
+    testWidgets('setup fits a ${width.toInt()} px phone at text x$scale', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpWidget(
+        MaterialApp(home: LocalSetupScreen(onStart: (_) {})),
+      );
+      for (final mode in ['1v1', 'All', '2v2']) {
+        await tester.tap(find.text(mode));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: mode);
+        for (final c in PlayerColor.values) {
+          final seat = find.byKey(Key('seat-${c.name}'));
+          if (seat.evaluate().isEmpty) continue;
+          final box = tester.getRect(seat);
+          expect(box.right, lessThanOrEqualTo(width), reason: '$mode $c');
+          expect(box.left, greaterThanOrEqualTo(0), reason: '$mode $c');
+        }
+        expect(tester.getRect(find.text(mode)).right, lessThanOrEqualTo(width));
+      }
+    });
+  }
+
   testWidgets('setup for 2v2 seats all four colours', (tester) async {
     LocalGameConfig? started;
     await tester.pumpWidget(

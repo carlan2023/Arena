@@ -16,6 +16,14 @@ void main() {
     expect(c.appVersion, 'dev');
     expect(c.databaseUrl, isNull);
     expect(c.paidTablesEnabled, isFalse);
+    expect(c.allowedOrigins, ServerConfig.defaultAllowedOrigins);
+  });
+
+  test('ALLOWED_ORIGINS is a comma list', () {
+    final c = ServerConfig.fromEnvironment({
+      'ALLOWED_ORIGINS': ' https://a.example , http://localhost:*,',
+    });
+    expect(c.allowedOrigins, ['https://a.example', 'http://localhost:*']);
   });
 
   test('reads every setting', () {

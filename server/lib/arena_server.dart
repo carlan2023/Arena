@@ -5,6 +5,7 @@ library;
 
 export 'config.dart';
 export 'src/clock.dart';
+export 'src/http/cors.dart' show OriginPolicy;
 export 'src/rooms/room.dart' show Room, Seat, Connection;
 export 'src/rooms/room_manager.dart'
     show RoomManager, RoomSettings, RoomException, MoveChooser;

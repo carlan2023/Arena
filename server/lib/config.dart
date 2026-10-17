@@ -73,9 +73,17 @@ class ServerConfig {
     this.guestsPerHour = 30,
     this.wsMessagesPerSecond = 20,
     this.paidTablesEnabled = false,
+    this.allowedOrigins = defaultAllowedOrigins,
   }) {
     _validate();
   }
+
+  /// The web app on Firebase Hosting and local `flutter run -d chrome`.
+  static const defaultAllowedOrigins = [
+    'https://arena-cddfa.web.app',
+    'https://arena-cddfa.firebaseapp.com',
+    'http://localhost:*',
+  ];
 
   /// Settings for tests: an ephemeral port on localhost, memory stores, fake
   /// login and payments, and a random session secret.
@@ -201,6 +209,13 @@ class ServerConfig {
       roomCreatesPerHour: intOf('ROOM_CREATES_PER_HOUR', 10),
       guestsPerHour: intOf('GUESTS_PER_HOUR', 30),
       wsMessagesPerSecond: intOf('WS_MESSAGES_PER_SECOND', 20),
+      allowedOrigins: switch (opt('ALLOWED_ORIGINS')) {
+        null => defaultAllowedOrigins,
+        final v => [
+          for (final o in v.split(','))
+            if (o.trim().isNotEmpty) o.trim(),
+        ],
+      },
     );
   }
 
@@ -246,6 +261,9 @@ class ServerConfig {
 
   /// Paid tables are refused with paid_tables_disabled until M3.9.
   final bool paidTablesEnabled;
+
+  /// Browser origins that may call the API and open the web socket.
+  final List<String> allowedOrigins;
 
   bool get fakePayments => paymentProviders.contains('fake');
 
