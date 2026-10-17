@@ -177,7 +177,7 @@ With every commit to main:
 | M0 Foundations | 28 Sep to 9 Oct 2026 | In progress |
 | M1 Rules engine and offline play | 12 Oct to 6 Nov 2026 | Done |
 | M2 Online rooms and wallet | 9 Nov to 27 Nov 2026 | In progress |
-| M3 Matchmaking, paid tables and polish | 30 Nov to 11 Dec 2026 | Not started |
+| M3 Matchmaking, paid tables and polish | 30 Nov to 11 Dec 2026 | In progress |
 | M4 Closed beta | 14 Dec to 28 Dec 2026 | Not started |
 | Release | 29 Dec to 31 Dec 2026 | Not started |
 
@@ -249,7 +249,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | M3.6 | Sound and vibration | Not started | |
 | M3.7 | Interactive tutorial | Not started | |
 | M3.8 | 2v2 teams, which moves to January if time runs short | Not started | |
-| M3.9 | Paid tables: stake taken on join, pot held until the game ends, then winner paid and our share taken | Not started | |
+| M3.9 | Paid tables: stake taken when the game starts, pot held until the game ends, then winner paid and our share taken | Not started | |
 | M3.10 | Wallet screen with balance, deposit and history | Not started | |
 | M3.11 | Deposit limits, minimum age check and self exclusion setting | Not started | |
 | M3.12 | Live deposits with real providers, behind a server setting | Not started | |
@@ -309,6 +309,7 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 13 Oct 2026 | M0.7 | CI starts Postgres and Redis on the runner instead of pulling images (D47), after the AWS mirror also refused anonymous pulls. The runner image already has PostgreSQL; Redis comes from the Ubuntu archive |
 | 13 Oct 2026 | M0.7 | App dependencies updated in one change, replacing Dependabot pull requests 13, 11, 7 and 6: go_router 18.0.2, shared_preferences 2.5.6, share_plus 13.3.1, app_links 7.2.2, cupertino_icons 2.0.0 and flutter_lints 6.0.0. The three new lint warnings from flutter_lints 6 fixed with null aware map entries |
 | 13 Oct 2026 | M0.7 | GitHub Actions updated, replacing Dependabot pull request 8: checkout 7, cache 6, upload-artifact 7, setup-java 6, docker login 4, docker build-push 7 and action-gh-release 3. Each major version moves to the Node 24 runtime; none removes an input these workflows use |
+| 13 Oct 2026 | M3 | M3 contract reviewed and frozen (docs/contracts/m3.md section 0, D48). The product defaults D35 to D44 logged as placeholders for Allan (Q12). The pass and play test now starts from the live home screen instead of the old unused one. README now says a paid stake is taken when the game starts, not on join. Six bigger findings assigned to M3.1, M3.2, M3.4, M3.9 and M3.11, and one new question for Allan (Q13) |
 
 ## 5. Scope of the first release
 
@@ -469,7 +470,7 @@ Dice, piece and board designs can be bought with coins or from the wallet.
 ### How money moves
 
 1. A player deposits with MTN MoMo or Airtel Money. The provider confirms the payment through a callback, and only then is the wallet credited.
-2. Joining a paid table moves the stake from the player's wallet into a pot account for that match.
+2. When a paid game starts, each player's stake moves from their wallet into a pot account for that match. Leaving the lobby before the start costs nothing.
 3. When the game ends, the server moves our share to our revenue account and the rest to the winner's wallet.
 4. If a game is abandoned before it starts, every stake goes back to its owner.
 5. Every movement is a pair of ledger entries, so balances can always be rebuilt from the ledger.

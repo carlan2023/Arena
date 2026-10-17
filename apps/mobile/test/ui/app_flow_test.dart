@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:arena/app/app.dart';
 import 'package:arena/ui/game_table.dart';
+import 'package:arena/ui/local_game_screen.dart';
 import 'package:arena/ui/local_setup_screen.dart';
 import 'package:arena/ui/room_screen.dart';
 import 'package:arena_protocol/arena_protocol.dart';
@@ -253,12 +254,15 @@ void main() {
     await app.stop();
   });
 
-  testWidgets('pass and play is on the home screen', (tester) async {
+  testWidgets('home leads to a pass and play game', (tester) async {
     final app = App(tester);
     await app.start();
     await tester.tap(find.byKey(const Key('pass-and-play')));
     await settle(tester);
     expect(find.byType(LocalSetupScreen), findsOneWidget);
+    await tester.tap(find.byKey(const Key('start')));
+    await settle(tester);
+    expect(find.byType(LocalGameScreen), findsOneWidget);
     await app.stop();
   });
 }

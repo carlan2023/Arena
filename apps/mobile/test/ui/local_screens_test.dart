@@ -1,7 +1,6 @@
 import 'package:arena/game/bots.dart';
 import 'package:arena/game/dice.dart';
 import 'package:arena/game/local_game.dart';
-import 'package:arena/screens/home_screen.dart';
 import 'package:arena/ui/local_game_screen.dart';
 import 'package:arena/ui/local_setup_screen.dart';
 import 'package:flutter/material.dart';
@@ -111,20 +110,5 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('Die 4, used'), findsOneWidget);
     expect(find.textContaining('no move possible'), findsOneWidget);
-  });
-
-  testWidgets('home leads to pass and play', (tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: HomeScreen())),
-    );
-    await tester.tap(find.byKey(const Key('pass-and-play')));
-    await tester.pumpAndSettle();
-    expect(find.byType(LocalSetupScreen), findsOneWidget);
-    await tester.tap(find.byKey(const Key('start')));
-    await tester.pumpAndSettle();
-    expect(find.byType(LocalGameScreen), findsOneWidget);
-    // Leave the game so its timers stop.
-    await tester.pageBack();
-    await tester.pumpAndSettle();
   });
 }
