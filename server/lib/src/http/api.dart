@@ -81,6 +81,7 @@ class Api {
     r.patch('/v1/me', _wrap(_patchMe));
     r.get('/v1/coins', _wrap(_coins));
     r.post('/v1/coins/daily', _wrap(_claimDaily));
+    r.get('/v1/tables', _wrap(_tables));
     r.post('/v1/rooms', _wrap(_createRoom));
     r.get('/v1/rooms/<code>', _wrap(_getRoom));
     r.get('/v1/wallet', _wrap(_wallet));
@@ -286,7 +287,7 @@ class Api {
             matchId: m.matchId,
             mode: parseMode(m.mode),
             stake: m.stake,
-            entry: 0,
+            entry: m.entry,
             abandoned: m.status == MatchStatus.abandoned,
             endedAt: m.endedAt,
             rank: m.players.where((p) => p.userId == user.id).first.place,
@@ -314,12 +315,13 @@ class Api {
         .firstOrNull;
     final seats = body['seats'];
     final stake = body['stake'] ?? 0;
+    final entry = body['entry'] ?? 0;
     final rulesJson = body['rules'];
-    if (mode == null || seats is! int || stake is! int) {
+    if (mode == null || seats is! int || stake is! int || entry is! int) {
       throw HttpError(
         400,
         ErrorCodes.badRequest,
-        'mode, seats and stake are required',
+        'mode, seats, stake and entry must be valid',
       );
     }
     if (!validSeats(mode, seats)) {
@@ -339,6 +341,20 @@ class Api {
           : RulesConfig.fromJson((rulesJson as Map).cast());
     } catch (e) {
       throw HttpError(400, ErrorCodes.badRequest, 'bad rules: $e');
+    }
+    if (entry > 0 && stake > 0) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'a room cannot take both coins and a stake',
+      );
+    }
+    if (entry > 0 && !const CoinTableSettings().allows(entry)) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'that coin table is not open',
+      );
     }
     if (stake > 0) _requirePhone(user!);
     if (stake > 0 && !config.paidTablesEnabled) {
@@ -361,6 +377,7 @@ class Api {
         mode: mode,
         seats: seats,
         stake: stake,
+        entry: entry,
         rules: rules,
       );
       return rooms.view(room).toJson();
@@ -368,6 +385,12 @@ class Api {
       throw HttpError(400, e.code, e.message);
     }
   }
+
+  Object? _tables(Request req, User? _, List<String> _) => TablesView(
+    coin: const CoinTableSettings().entries,
+    paid: CoinTableSettings.paidStakes,
+    paidEnabled: config.paidTablesEnabled,
+  ).toJson();
 
   Object? _getRoom(Request req, User? _, List<String> params) {
     final room = rooms.room(params[0]);

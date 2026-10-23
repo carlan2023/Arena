@@ -95,6 +95,7 @@ class Room {
     required this.mode,
     required this.seatCount,
     required this.stake,
+    this.entry = 0,
     required this.rules,
     required this.serverSeed,
     required this.createdAtMs,
@@ -107,6 +108,9 @@ class Room {
   final GameMode mode;
   final int seatCount;
   final int stake;
+
+  /// Coins taken from each seat when the game starts. 0 is free.
+  final int entry;
   final RulesConfig rules;
   final Uint8List serverSeed;
   final String serverSeedHash;
@@ -115,10 +119,23 @@ class Room {
   RoomStatus status = RoomStatus.waiting;
   final List<Seat?> seats;
 
-  /// Set at the start.
+  /// Set at the start, or earlier while a coin entry is being collected.
   String? clientSeed;
   String? matchId;
   GameState? state;
+
+  /// True once the coin entry for [matchId] is in the pot.
+  bool stakesHeld = false;
+
+  /// Move lists applied in this match. Rolls do not count. An abandoned coin
+  /// game refunds only while this is still 0.
+  int movesPlayed = 0;
+
+  /// A coin charge is in flight. The game has not started.
+  bool starting = false;
+
+  /// The game has ended and the pot is being paid or refunded.
+  bool settling = false;
 
   /// Per room event counter; +1 for every broadcast.
   int seq = 0;
@@ -178,6 +195,7 @@ class Room {
     mode: mode,
     seats: seatCount,
     stake: stake,
+    entry: entry,
     status: status,
     ownerUserId: ownerUserId,
     matchId: matchId,
@@ -205,6 +223,7 @@ class Room {
     'mode': mode.name,
     'seatCount': seatCount,
     'stake': stake,
+    'entry': entry,
     'rules': rules.toJson(),
     'serverSeed': toHex(serverSeed),
     'createdAtMs': createdAtMs,
@@ -212,6 +231,8 @@ class Room {
     'seats': [for (final s in seats) s?.toSnapshot()],
     'clientSeed': clientSeed,
     'matchId': matchId,
+    'stakesHeld': stakesHeld,
+    'movesPlayed': movesPlayed,
     'state': state?.toJson(),
     'seq': seq,
     'deadline': deadline,
@@ -226,6 +247,7 @@ class Room {
       mode: GameMode.values.byName(j['mode'] as String),
       seatCount: j['seatCount'] as int,
       stake: j['stake'] as int,
+      entry: j['entry'] as int? ?? 0,
       rules: RulesConfig.fromJson((j['rules'] as Map).cast()),
       serverSeed: fromHex(j['serverSeed'] as String),
       createdAtMs: j['createdAtMs'] as int,
@@ -238,6 +260,8 @@ class Room {
     }
     room.clientSeed = j['clientSeed'] as String?;
     room.matchId = j['matchId'] as String?;
+    room.stakesHeld = j['stakesHeld'] as bool? ?? false;
+    room.movesPlayed = j['movesPlayed'] as int? ?? 0;
     final state = j['state'];
     room.state = state == null
         ? null

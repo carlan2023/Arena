@@ -30,6 +30,7 @@ abstract interface class ArenaApi {
     String token, {
     required GameMode mode,
     required int seats,
+    int entry = 0,
   });
   Future<RoomView> getRoom(String token, String code);
 }
@@ -86,7 +87,8 @@ class HttpArenaApi implements ArenaApi {
     String token, {
     required GameMode mode,
     required int seats,
-  }) => _client(token).createRoom(mode: mode, seats: seats);
+    int entry = 0,
+  }) => _client(token).createRoom(mode: mode, seats: seats, entry: entry);
 
   @override
   Future<RoomView> getRoom(String token, String code) =>

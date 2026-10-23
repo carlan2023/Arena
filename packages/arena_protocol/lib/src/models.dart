@@ -96,6 +96,7 @@ class RoomView {
     required this.mode,
     required this.seats,
     required this.stake,
+    this.entry = 0,
     required this.status,
     required this.ownerUserId,
     required this.matchId,
@@ -107,6 +108,9 @@ class RoomView {
   final GameMode mode;
   final int seats;
   final int stake;
+
+  /// Coins each player puts in when the game starts. 0 is a free table.
+  final int entry;
   final RoomStatus status;
   final String ownerUserId;
 
@@ -120,6 +124,7 @@ class RoomView {
     'mode': mode.name,
     'seats': seats,
     'stake': stake,
+    'entry': entry,
     'status': status.name,
     'ownerUserId': ownerUserId,
     'matchId': matchId,
@@ -132,6 +137,7 @@ class RoomView {
     mode: parseMode(reqString(j, 'mode')),
     seats: reqInt(j, 'seats'),
     stake: reqInt(j, 'stake'),
+    entry: optInt(j, 'entry') ?? 0,
     status: _parseEnum(RoomStatus.values, reqString(j, 'status'), 'status'),
     ownerUserId: reqString(j, 'ownerUserId'),
     matchId: optString(j, 'matchId'),
@@ -139,6 +145,30 @@ class RoomView {
       for (final p in reqList(j, 'players'))
         PlayerView.fromJson(asObject(p, 'players')),
     ],
+  );
+}
+
+/// `GET /v1/tables`.
+class TablesView {
+  const TablesView({
+    required this.coin,
+    required this.paid,
+    required this.paidEnabled,
+  });
+
+  /// Coin entries, including 0 for a free table.
+  final List<int> coin;
+
+  /// UGX stakes. Empty of effect while [paidEnabled] is false.
+  final List<int> paid;
+  final bool paidEnabled;
+
+  Json toJson() => {'coin': coin, 'paid': paid, 'paidEnabled': paidEnabled};
+
+  factory TablesView.fromJson(Json j) => TablesView(
+    coin: reqIntList(j, 'coin'),
+    paid: reqIntList(j, 'paid'),
+    paidEnabled: reqBool(j, 'paidEnabled'),
   );
 }
 

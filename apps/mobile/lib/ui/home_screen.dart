@@ -20,22 +20,60 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _busy = false;
 
-  Future<void> _createRoom() async {
-    final choice = await showModalBottomSheet<(GameMode, int)>(
+  Future<void> _quick(GameMode mode) async {
+    final entry = await showModalBottomSheet<int>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final (label, mode, seats) in const [
-              ('1 v 1', GameMode.oneVsOne, 2),
-              ('Free for all, 3 players', GameMode.freeForAll, 3),
-              ('Free for all, 4 players', GameMode.freeForAll, 4),
-              ('2 v 2 teams', GameMode.teams, 4),
+            for (final (label, amount) in const [
+              ('Free', 0),
+              ('50 coins', 50),
+              ('200 coins', 200),
+              ('1000 coins', 1000),
+            ])
+              ListTile(
+                key: Key('table-$amount'),
+                title: Text(label),
+                onTap: () => Navigator.pop(context, amount),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (entry == null || !mounted) return;
+    final path = entry == 0
+        ? '/quick/${mode.name}'
+        : '/quick/${mode.name}/$entry';
+    context.push(path);
+  }
+
+  Future<void> _createRoom() async {
+    final choice = await showModalBottomSheet<(GameMode, int, int)>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final (label, mode, seats, entry) in const [
+              ('1 v 1', GameMode.oneVsOne, 2, 0),
+              ('Free for all, 3 players', GameMode.freeForAll, 3, 0),
+              ('Free for all, 4 players', GameMode.freeForAll, 4, 0),
+              ('2 v 2 teams', GameMode.teams, 4, 0),
+              ('1 v 1, 50 coins', GameMode.oneVsOne, 2, 50),
+              ('1 v 1, 200 coins', GameMode.oneVsOne, 2, 200),
+              ('1 v 1, 1000 coins', GameMode.oneVsOne, 2, 1000),
+              ('3 players, 50 coins', GameMode.freeForAll, 3, 50),
+              ('3 players, 200 coins', GameMode.freeForAll, 3, 200),
+              ('3 players, 1000 coins', GameMode.freeForAll, 3, 1000),
+              ('4 players, 50 coins', GameMode.freeForAll, 4, 50),
+              ('4 players, 200 coins', GameMode.freeForAll, 4, 200),
+              ('4 players, 1000 coins', GameMode.freeForAll, 4, 1000),
             ])
               ListTile(
                 title: Text(label),
-                onTap: () => Navigator.pop(context, (mode, seats)),
+                onTap: () => Navigator.pop(context, (mode, seats, entry)),
               ),
           ],
         ),
@@ -48,7 +86,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final session = await ref.read(authProvider.notifier).ensureSession();
       final room = await ref
           .read(arenaApiProvider)
-          .createRoom(session.token, mode: choice.$1, seats: choice.$2);
+          .createRoom(
+            session.token,
+            mode: choice.$1,
+            seats: choice.$2,
+            entry: choice.$3,
+          );
       if (mounted) context.push('/room/${room.code}');
     } on Object {
       if (mounted) {
@@ -128,7 +171,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     key: const Key('quick-1v1'),
-                    onPressed: () => context.push('/quick/oneVsOne'),
+                    onPressed: () => _quick(GameMode.oneVsOne),
                     icon: const Icon(Icons.bolt),
                     label: const Text('Quick 1 v 1'),
                   ),
@@ -137,7 +180,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     key: const Key('quick-4'),
-                    onPressed: () => context.push('/quick/freeForAll'),
+                    onPressed: () => _quick(GameMode.freeForAll),
                     icon: const Icon(Icons.groups),
                     label: const Text('Quick 4 players'),
                   ),

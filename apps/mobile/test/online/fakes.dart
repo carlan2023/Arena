@@ -125,8 +125,13 @@ class FakeApi implements ArenaApi {
     String token, {
     required GameMode mode,
     required int seats,
+    int entry = 0,
   }) async {
-    calls.add('create $token ${mode.name} $seats');
+    calls.add(
+      entry == 0
+          ? 'create $token ${mode.name} $seats'
+          : 'create $token ${mode.name} $seats entry $entry',
+    );
     return room ?? lobbyRoom();
   }
 
@@ -210,18 +215,22 @@ PlayerView player(
   connected: connected,
 );
 
-RoomView lobbyRoom({List<PlayerView>? players, String owner = 'u1'}) =>
-    RoomView(
-      code: code,
-      link: 'https://arena.example/r/$code',
-      mode: GameMode.oneVsOne,
-      seats: 2,
-      stake: 0,
-      status: RoomStatus.waiting,
-      ownerUserId: owner,
-      matchId: null,
-      players: players ?? [player(0, me)],
-    );
+RoomView lobbyRoom({
+  List<PlayerView>? players,
+  String owner = 'u1',
+  int entry = 0,
+}) => RoomView(
+  code: code,
+  link: 'https://arena.example/r/$code',
+  mode: GameMode.oneVsOne,
+  seats: 2,
+  stake: 0,
+  entry: entry,
+  status: RoomStatus.waiting,
+  ownerUserId: owner,
+  matchId: null,
+  players: players ?? [player(0, me)],
+);
 
 RoomView playingRoom() => RoomView(
   code: code,

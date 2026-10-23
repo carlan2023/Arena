@@ -15,8 +15,10 @@ import 'package:arena_auth/arena_auth.dart'
 import 'package:arena_wallet/arena_wallet.dart' as wallet;
 import 'package:arena_wallet/arena_wallet.dart'
     show
+        AccountId,
         AirtelMoneyProvider,
         CoinService,
+        Currency,
         FakePaymentProvider,
         InMemoryLedger,
         InMemoryPaymentStore,
@@ -26,7 +28,8 @@ import 'package:arena_wallet/arena_wallet.dart'
         PaymentStore,
         PaymentsService,
         PostgresLedger,
-        PostgresPaymentStore;
+        PostgresPaymentStore,
+        SettlementService;
 import 'package:postgres/postgres.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -37,6 +40,7 @@ import 'clock.dart';
 import 'http/api.dart';
 import 'http/cors.dart';
 import 'http/ws.dart';
+import 'rooms/matchmaker.dart';
 import 'rooms/room_manager.dart';
 import 'store/live_store.dart';
 import 'store/match_log.dart';
@@ -240,6 +244,12 @@ Future<RunningServer> startServer(
     matchLog: matchLog,
     random: overrides.random,
     logError: (m, e, st) => log('ERROR $m: $e${st == null ? '' : '\n$st'}'),
+    allowTable: openCoinTables,
+    settlement: SettlementService(ledger: ledger),
+    balances: (userId) async => (
+      await ledger.balance(AccountId.wallet(userId)),
+      await ledger.balance(AccountId.wallet(userId, Currency.coin)),
+    ),
   );
   final restored = await rooms.restore();
   if (restored > 0) log('restored $restored live rooms');

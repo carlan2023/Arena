@@ -157,9 +157,15 @@ void main() {
     app.links.add(Uri.parse('https://arena.example/r/ABC234'));
     await settle(tester);
     await app.receive(
-      lobbyState(room: lobbyRoom(players: [player(0, me), player(1, them)])),
+      lobbyState(
+        room: lobbyRoom(players: [player(0, me), player(1, them)], entry: 50),
+      ),
     );
     expect(find.byKey(const Key('lobby-code')), findsOneWidget);
+    expect(
+      find.text('50 coins each, taken when the game starts'),
+      findsOneWidget,
+    );
     expect(find.text('Amina (you)'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('share')));
@@ -207,9 +213,11 @@ void main() {
         serverSeed: 'aa',
         clientSeed: 'x:1',
         walletDelta: {},
+        coinsDelta: {'u1': 50},
       ),
     );
     expect(find.text('You won!'), findsOneWidget);
+    expect(find.text('+50 coins'), findsOneWidget);
     await tester.tap(find.byKey(const Key('results-home')));
     await settle(tester);
     expect(find.text('Hello, Amina'), findsOneWidget);
@@ -282,6 +290,8 @@ void main() {
     await app.start(loggedIn: false);
     await tester.tap(find.byKey(const Key('quick-1v1')));
     await settle(tester);
+    await tester.tap(find.byKey(const Key('table-0')));
+    await settle(tester);
     expect(app.api.actions, ['guest']);
     final join = app.connector.last.sent.single as QueueJoinMessage;
     expect((join.mode, join.entry, join.stake), (GameMode.oneVsOne, 0, 0));
@@ -310,6 +320,8 @@ void main() {
     await app.start();
     await tester.tap(find.byKey(const Key('quick-4')));
     await settle(tester);
+    await tester.tap(find.byKey(const Key('table-0')));
+    await settle(tester);
     await app.receive(
       queueStatus(
         QueueState.waiting,
@@ -334,6 +346,8 @@ void main() {
     await app.start();
     await tester.tap(find.byKey(const Key('quick-1v1')));
     await settle(tester);
+    await tester.tap(find.byKey(const Key('table-0')));
+    await settle(tester);
     await app.receive(
       const ErrorMessage(code: 'queue_busy', message: 'x', ref: 1),
     );
@@ -354,6 +368,8 @@ void main() {
     await app.start();
     await tester.tap(find.byKey(const Key('quick-1v1')));
     await settle(tester);
+    await tester.tap(find.byKey(const Key('table-0')));
+    await settle(tester);
     app.connector.last.drop();
     await settle(tester);
     expect(find.text('Connecting to the server'), findsOneWidget);
@@ -361,6 +377,19 @@ void main() {
     await settle(tester);
     expect(app.connector.sockets, hasLength(2));
     expect(app.connector.last.sent.single, isA<QueueJoinMessage>());
+    await app.stop();
+  });
+
+  testWidgets('a coin table is named on the search screen', (tester) async {
+    final app = App(tester);
+    await app.start();
+    await tester.tap(find.byKey(const Key('quick-1v1')));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('table-50')));
+    await settle(tester);
+    final join = app.connector.last.sent.single as QueueJoinMessage;
+    expect(join.entry, 50);
+    expect(find.text('50 coin table'), findsOneWidget);
     await app.stop();
   });
 

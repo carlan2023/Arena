@@ -13,5 +13,6 @@ export 'src/mtn_momo_provider.dart';
 export 'src/payment.dart';
 export 'src/payments_service.dart';
 export 'src/payout.dart';
+export 'src/settlement.dart';
 export 'src/postgres_ledger.dart';
 export 'src/postgres_payment_store.dart';

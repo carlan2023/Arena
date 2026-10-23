@@ -69,6 +69,13 @@ ALTER TABLE match_players ADD COLUMN avatar smallint NOT NULL DEFAULT 0;
 CREATE INDEX matches_ended_idx ON matches (ended_at DESC) WHERE ended_at IS NOT NULL;
 ''',
   ),
+  Migration(
+    id: 'server_003_coin_entry',
+    sql: '''
+ALTER TABLE rooms ADD COLUMN entry bigint NOT NULL DEFAULT 0;
+ALTER TABLE matches ADD COLUMN entry bigint NOT NULL DEFAULT 0;
+''',
+  ),
 ];
 
 /// Any fixed number; identifies the migration advisory lock.

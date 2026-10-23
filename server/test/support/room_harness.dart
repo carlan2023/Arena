@@ -7,6 +7,7 @@ import 'package:arena_server/src/rooms/room.dart';
 import 'package:arena_server/src/rooms/room_manager.dart';
 import 'package:arena_server/src/store/live_store.dart';
 import 'package:arena_server/src/store/match_log.dart';
+import 'package:arena_wallet/arena_wallet.dart';
 import 'package:ludo_engine/ludo_engine.dart';
 
 /// Picks the first legal sequence; stands in for the bot in unit tests.
@@ -52,6 +53,8 @@ class Harness {
     FakeClock? clock,
     int seed = 1,
     (String, String)? Function(QueueKey key, Connection conn)? allowTable,
+    this.settlement,
+    this.balances,
   }) : clock = clock ?? FakeClock(),
        live = live ?? InMemoryLiveRoomStore(),
        log = log ?? InMemoryMatchLog() {
@@ -63,8 +66,13 @@ class Harness {
       matchLog: this.log,
       random: Random(seed),
       allowTable: allowTable,
+      settlement: settlement,
+      balances: balances,
     );
   }
+
+  final SettlementService? settlement;
+  final Future<(int, int)> Function(String userId)? balances;
 
   final FakeClock clock;
   final LiveRoomStore live;
@@ -94,12 +102,14 @@ class Harness {
     GameMode mode = GameMode.oneVsOne,
     int? seats,
     int stake = 0,
+    int entry = 0,
   }) {
     final room = manager.createRoom(
       ownerUserId: users.first,
       mode: mode,
       seats: seats ?? users.length,
       stake: stake,
+      entry: entry,
     );
     for (final u in users) {
       join(connect(u), room.code, seed: 'seed$u');
@@ -121,8 +131,21 @@ class Harness {
   }
 
   void playToEnd(Room room, {int limit = 5000}) {
-    for (var i = 0; i < limit && room.status == RoomStatus.playing; i++) {
+    for (
+      var i = 0;
+      i < limit && room.status == RoomStatus.playing && !room.settling;
+      i++
+    ) {
       playOne(room);
     }
+  }
+
+  /// Waits for coin charges and payouts, and for the messages sent when
+  /// those futures complete.
+  Future<void> drain() async {
+    await manager.flush();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    await manager.flush();
   }
 }

@@ -12,6 +12,7 @@ import '../game/move_selection.dart';
 import '../game/table_view.dart';
 import 'api.dart';
 import 'auth.dart';
+import 'coins.dart';
 import 'socket.dart';
 
 enum Connection { connecting, connected, reconnecting }
@@ -253,6 +254,8 @@ class RoomController extends Notifier<RoomScreenView> implements TableActions {
         _onError(m);
       case PongMessage():
         _setOffset(m.serverNow);
+      case WalletUpdateMessage():
+        ref.invalidate(coinsProvider);
       case DiceMessage(:final seq) ||
           StatePatchMessage(:final seq) ||
           PlayerStatusMessage(:final seq) ||
@@ -407,6 +410,7 @@ class RoomController extends Notifier<RoomScreenView> implements TableActions {
         mode: r.mode,
         seats: r.seats,
         stake: r.stake,
+        entry: r.entry,
         status: r.status,
         ownerUserId: r.ownerUserId,
         matchId: r.matchId,

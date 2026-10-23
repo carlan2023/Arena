@@ -1,5 +1,6 @@
 import 'package:arena_protocol/arena_protocol.dart';
 import 'package:arena_server/arena_server.dart';
+import 'package:arena_server/src/rooms/matchmaker.dart';
 import 'package:ludo_engine/ludo_engine.dart';
 import 'package:test/test.dart';
 
@@ -182,6 +183,43 @@ void main() {
     );
     expect(a.lastError!.code, ErrorCodes.badRequest);
     expect(h.manager.matchmaker.isQueued('a'), isFalse);
+  });
+
+  test('open coin tables accept 50 and still refuse a stake or 75', () {
+    final open = Harness(allowTable: openCoinTables);
+    final a = open.connect('a');
+    open.send(
+      a,
+      (n) => QueueJoinMessage(
+        mode: GameMode.oneVsOne,
+        entry: 50,
+        clientSeed: 'seeda',
+        cseq: n,
+      ),
+    );
+    expect(a.last<QueueStatusMessage>().state, QueueState.waiting);
+    expect(a.last<QueueStatusMessage>().entry, 50);
+    final b = open.connect('b');
+    open.send(
+      b,
+      (n) => QueueJoinMessage(
+        mode: GameMode.oneVsOne,
+        entry: 75,
+        clientSeed: 'seedb',
+        cseq: n,
+      ),
+    );
+    expect(b.lastError!.code, ErrorCodes.badRequest);
+    open.send(
+      b,
+      (n) => QueueJoinMessage(
+        mode: GameMode.oneVsOne,
+        stake: 1000,
+        clientSeed: 'seedb',
+        cseq: n,
+      ),
+    );
+    expect(b.lastError!.code, ErrorCodes.paidTablesDisabled);
   });
 
   group('bot seat fill', () {

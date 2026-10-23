@@ -196,6 +196,77 @@ void main() {
       );
     });
 
+    test('tables list coin entries and keep paid stakes off', () async {
+      final c = await loggedIn('+256772000020');
+      final tables = TablesView.fromJson(await c.request('GET', '/v1/tables'));
+      expect(tables.coin, [0, 50, 200, 1000]);
+      expect(tables.paid, [1000, 2000, 5000, 10000, 20000, 50000]);
+      expect(tables.paidEnabled, isFalse);
+      final guest = ArenaClient(baseUrl: server.baseUrl);
+      clients.add(guest);
+      await guest.guest();
+      final room = await guest.createRoom(entry: 50);
+      expect(room.entry, 50);
+      await expectLater(
+        guest.createRoom(entry: 75),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'bad_request')),
+      );
+      await expectLater(
+        guest.createRoom(mode: GameMode.teams, seats: 4, entry: 50),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'bad_request')),
+      );
+      await expectLater(
+        c.createRoom(stake: 1000),
+        throwsA(
+          isA<ApiError>().having((e) => e.code, 'code', 'paid_tables_disabled'),
+        ),
+      );
+    });
+
+    test('a coin room charges both players when it starts', () async {
+      final a = ArenaClient(baseUrl: server.baseUrl);
+      final b = ArenaClient(baseUrl: server.baseUrl);
+      clients.addAll([a, b]);
+      await a.guest();
+      await b.guest();
+      expect((await a.coins()).balance, 500);
+      final room = await a.createRoom(entry: 50);
+      await a.connect();
+      await b.connect();
+      a.joinRoom(room.code, clientSeed: 'alpha');
+      b.joinRoom(room.code, clientSeed: 'beta');
+      final playing = await a.next<RoomStateMessage>(
+        where: (m) => m.room.status == RoomStatus.playing,
+      );
+      expect(playing.room.entry, 50);
+      final update = await a.next<WalletUpdateMessage>();
+      expect((update.reason, update.coins), ('stake', 450));
+      expect((await a.coins()).balance, 450);
+      expect((await b.coins()).balance, 450);
+    });
+
+    test('a short coin wallet is removed and nobody is charged', () async {
+      final a = ArenaClient(baseUrl: server.baseUrl);
+      final b = ArenaClient(baseUrl: server.baseUrl);
+      clients.addAll([a, b]);
+      await a.guest();
+      await b.guest();
+      final room = await a.createRoom(entry: 1000);
+      await a.connect();
+      await b.connect();
+      a.joinRoom(room.code, clientSeed: 'alpha');
+      b.joinRoom(room.code, clientSeed: 'beta');
+      final err = await a.next<ErrorMessage>();
+      expect(err.code, 'insufficient_funds');
+      final left = await b.next<RoomStateMessage>(
+        where: (m) => m.room.players.length == 1,
+      );
+      expect(left.room.status, RoomStatus.waiting);
+      expect(left.room.players.single.userId, b.user!.id);
+      expect((await a.coins()).balance, 500);
+      expect((await b.coins()).balance, 500);
+    });
+
     test('landing page', () async {
       final c = await loggedIn('+256772000003');
       final room = await c.createRoom();

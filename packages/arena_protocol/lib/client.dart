@@ -76,12 +76,14 @@ class ArenaClient {
     GameMode mode = GameMode.oneVsOne,
     int seats = 2,
     int stake = 0,
+    int entry = 0,
     RulesConfig? rules,
   }) async => RoomView.fromJson(
     await _send('POST', '/v1/rooms', {
       'mode': mode.name,
       'seats': seats,
       'stake': stake,
+      'entry': entry,
       'rules': ?rules?.toJson(),
     }),
   );
@@ -102,6 +104,10 @@ class ArenaClient {
   /// was claimed today.
   Future<CoinGrantView> claimDailyReward() async =>
       CoinGrantView.fromJson(await _send('POST', '/v1/coins/daily'));
+
+  /// Open coin entries and paid stakes.
+  Future<TablesView> tables() async =>
+      TablesView.fromJson(await _send('GET', '/v1/tables'));
 
   /// The caller's last 20 ended matches, newest first.
   Future<List<RecentMatchView>> recentMatches() async {

@@ -1,5 +1,6 @@
 import 'package:arena_protocol/arena_protocol.dart';
 import 'package:arena_protocol/fair_dice.dart' show isValidClientSeed;
+import 'package:arena_wallet/arena_wallet.dart' show CoinTableSettings;
 import 'package:ludo_engine/ludo_engine.dart';
 
 import '../clock.dart';
@@ -81,10 +82,27 @@ abstract interface class MatchHost {
   /// The code of the room where [userId] holds a seat, if any.
   String? activeRoomOf(String userId);
 
-  /// Creates and starts a game with these players and returns its code.
+  /// Creates a game with these players and returns its code. A free game is
+  /// started before this returns. A coin game is only seated: the entries are
+  /// collected by the future from [takePendingStake], and the game starts
+  /// when that succeeds.
   String startMatch(QueueKey key, List<MatchedPlayer> players);
 
+  /// The in-flight coin charge for [code], or null when the match was free.
+  /// Completes with the user ids removed because they could not pay.
+  Future<Set<String>>? takePendingStake(String code);
+
   void sendError(Connection conn, int? ref, String code, String message);
+}
+
+/// Free tables and the coin entries in [CoinTableSettings]. A stake is still
+/// refused: paid tables stay closed until M3.9.
+(String, String)? openCoinTables(QueueKey key, Connection _) {
+  if (key.isPaid) {
+    return (ErrorCodes.paidTablesDisabled, 'paid tables are not open yet');
+  }
+  if (const CoinTableSettings().allows(key.entry)) return null;
+  return (ErrorCodes.badRequest, 'that coin table is not open');
 }
 
 /// Quick match queues. Players wait per [QueueKey]; when a queue holds
@@ -277,9 +295,27 @@ class Matchmaker {
         ),
       for (var i = group.length; i < key.seats; i++) MatchedPlayer.bot(i),
     ]);
-    for (final w in group) {
-      _send(w, QueueState.matched, roomCode: code, playersFound: key.seats);
+    final pending = host.takePendingStake(code);
+    if (pending == null) {
+      for (final w in group) {
+        _send(w, QueueState.matched, roomCode: code, playersFound: key.seats);
+      }
+      return;
     }
+    pending.then((removed) {
+      for (final w in group) {
+        if (removed.contains(w.userId)) {
+          host.sendError(
+            w.conn,
+            null,
+            ErrorCodes.insufficientFunds,
+            'not enough coins for this table',
+          );
+        } else {
+          _send(w, QueueState.matched, roomCode: code, playersFound: key.seats);
+        }
+      }
+    });
   }
 
   void _broadcastWaiting(QueueKey key, {_Waiting? except}) {
