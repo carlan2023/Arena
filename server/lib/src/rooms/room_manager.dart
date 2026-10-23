@@ -16,11 +16,8 @@ import 'room.dart';
 /// Picks the full move list for the current roll (a bot).
 typedef MoveChooser = List<Move> Function(GameState state);
 
-typedef ErrorLogger = void Function(
-  String message,
-  Object? error,
-  StackTrace? stack,
-);
+typedef ErrorLogger =
+    void Function(String message, Object? error, StackTrace? stack);
 
 /// Timing and limits for rooms.
 class RoomSettings {
@@ -75,6 +72,7 @@ class RoomManager implements MatchHost {
     (String, String)? Function(QueueKey key, Connection conn)? allowTable,
     this.settlement,
     this.balances,
+    this.paidPlayBlock,
   }) : liveStore = liveStore ?? InMemoryLiveRoomStore(),
        matchLog = matchLog ?? InMemoryMatchLog(),
        _random = random ?? Random.secure(),
@@ -104,6 +102,11 @@ class RoomManager implements MatchHost {
 
   /// UGX balance, then coins, for a wallet_update. Null when [settlement] is.
   final Future<(int, int)> Function(String userId)? balances;
+
+  /// When set, a queue_join with a stake above 0 waits for this first.
+  /// A non-null pair is an error code and message; null means the queue may
+  /// continue. Coin and free queues do not call it.
+  final Future<(String, String)?> Function(String userId)? paidPlayBlock;
 
   final Map<String, Room> _rooms = {};
 
@@ -288,9 +291,32 @@ class RoomManager implements MatchHost {
         final room = _boundRoom(conn, msg, quiet: true);
         if (room != null) _emote(conn, room, msg);
       case QueueJoinMessage():
-        matchmaker.join(conn, msg);
+        final block = paidPlayBlock;
+        if (msg.stake > 0 && block != null) {
+          _track(_guardPaidQueue(conn, msg, block));
+        } else {
+          matchmaker.join(conn, msg);
+        }
       case QueueLeaveMessage():
         matchmaker.leave(conn, msg.cseq);
+    }
+  }
+
+  Future<void> _guardPaidQueue(
+    Connection conn,
+    QueueJoinMessage msg,
+    Future<(String, String)?> Function(String userId) block,
+  ) async {
+    try {
+      final refused = await block(conn.userId);
+      if (refused != null) {
+        _error(conn, msg.cseq, refused.$1, refused.$2);
+        return;
+      }
+      matchmaker.join(conn, msg);
+    } catch (e, st) {
+      _logError('paid queue check', e, st);
+      _error(conn, msg.cseq, ErrorCodes.internal, 'internal error');
     }
   }
 
@@ -515,8 +541,9 @@ class RoomManager implements MatchHost {
       seated[i].graceTimer = null;
       seated[i].graceDeadline = null;
     }
-    room.clientSeed = [for (final s in seated) s.clientSeed ?? '${s.index}']
-        .join(':');
+    room.clientSeed = [
+      for (final s in seated) s.clientSeed ?? '${s.index}',
+    ].join(':');
     room.matchId ??= newUuid(_random);
     room.state = GameState.newGame(
       mode: room.mode,

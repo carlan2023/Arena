@@ -10,6 +10,7 @@ class UserView {
     required this.displayName,
     this.avatar = 0,
     this.coins = 0,
+    this.dateOfBirth,
   });
 
   final String id;
@@ -22,6 +23,9 @@ class UserView {
   /// Coin balance (D36). Play money, never cashed out.
   final int coins;
 
+  /// `yyyy-mm-dd`, only on the owner's own user. Null until they set it.
+  final String? dateOfBirth;
+
   /// A guest has no verified phone and may only play free games (D33).
   bool get isGuest => phone.isEmpty;
 
@@ -31,6 +35,7 @@ class UserView {
     'displayName': displayName,
     'avatar': avatar,
     'coins': coins,
+    'dateOfBirth': ?dateOfBirth,
     'isGuest': isGuest,
   };
 
@@ -40,6 +45,7 @@ class UserView {
     displayName: reqString(j, 'displayName'),
     avatar: optInt(j, 'avatar') ?? 0,
     coins: optInt(j, 'coins') ?? 0,
+    dateOfBirth: optString(j, 'dateOfBirth'),
   );
 }
 
@@ -214,6 +220,82 @@ class PaymentView {
     status: reqString(j, 'status'),
     createdAt: _parseDate(reqString(j, 'createdAt')),
   );
+}
+
+/// A raise that is waiting out the 24 hour delay (M3.11).
+class PendingLimitsView {
+  const PendingLimitsView({
+    required this.at,
+    this.daily,
+    this.weekly,
+    this.monthly,
+  });
+
+  final DateTime at;
+  final int? daily;
+  final int? weekly;
+  final int? monthly;
+
+  Json toJson() => {
+    'at': at.toUtc().toIso8601String(),
+    'daily': ?daily,
+    'weekly': ?weekly,
+    'monthly': ?monthly,
+  };
+
+  factory PendingLimitsView.fromJson(Json j) => PendingLimitsView(
+    at: _parseDate(reqString(j, 'at')),
+    daily: optInt(j, 'daily'),
+    weekly: optInt(j, 'weekly'),
+    monthly: optInt(j, 'monthly'),
+  );
+}
+
+/// `GET /v1/wallet/limits`.
+class LimitsView {
+  const LimitsView({
+    required this.daily,
+    required this.weekly,
+    required this.monthly,
+    this.pending,
+    this.excludedUntil,
+    required this.permanent,
+  });
+
+  final int daily;
+  final int weekly;
+  final int monthly;
+  final PendingLimitsView? pending;
+  final DateTime? excludedUntil;
+  final bool permanent;
+
+  /// True while a self exclusion is running at [now].
+  bool excludedAt(DateTime now) =>
+      permanent || (excludedUntil != null && now.isBefore(excludedUntil!));
+
+  Json toJson() => {
+    'daily': daily,
+    'weekly': weekly,
+    'monthly': monthly,
+    'pending': ?pending?.toJson(),
+    'excludedUntil': ?excludedUntil?.toUtc().toIso8601String(),
+    'permanent': permanent,
+  };
+
+  factory LimitsView.fromJson(Json j) {
+    final pending = j['pending'];
+    final until = optString(j, 'excludedUntil');
+    return LimitsView(
+      daily: reqInt(j, 'daily'),
+      weekly: reqInt(j, 'weekly'),
+      monthly: reqInt(j, 'monthly'),
+      pending: pending == null
+          ? null
+          : PendingLimitsView.fromJson(asObject(pending, 'pending')),
+      excludedUntil: until == null ? null : _parseDate(until),
+      permanent: reqBool(j, 'permanent'),
+    );
+  }
 }
 
 /// `WalletEntry` in the protocol.

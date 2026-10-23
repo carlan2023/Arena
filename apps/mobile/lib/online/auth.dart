@@ -163,6 +163,22 @@ class AuthController extends AsyncNotifier<Session?> {
     await _keep(session, user);
   }
 
+  /// Stores the date of birth once. Under the minimum age the server still
+  /// saves it and answers age_required; the session is refreshed either way.
+  Future<void> setDateOfBirth(String date) async {
+    final session = state.value;
+    if (session == null) return;
+    final api = ref.read(arenaApiProvider);
+    try {
+      await _keep(session, await api.setDateOfBirth(session.token, date));
+    } on ApiError catch (e) {
+      if (e.code == ErrorCodes.ageRequired) {
+        await _keep(session, await api.me(session.token));
+      }
+      rethrow;
+    }
+  }
+
   /// Changes the name, the avatar or both on the server and keeps the result.
   Future<void> setProfile({String? name, int? avatar}) async {
     final session = await ensureSession();

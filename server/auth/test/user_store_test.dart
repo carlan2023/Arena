@@ -155,4 +155,29 @@ void userStoreTests(
     }
     await expectLater(store.setAvatar('nobody', 1), throwsStateError);
   });
+
+  test('setDateOfBirth is once only and survives a rename', () async {
+    final user = await store.upsertByIdentity(
+      const VerifiedIdentity(uid: 'u', phoneNumber: '+256772123456'),
+    );
+    expect(user.dateOfBirth, isNull);
+    final dob = DateTime.utc(1990, 4, 1);
+    final set = await store.setDateOfBirth(user.id, dob);
+    expect(set.dateOfBirth, dob);
+    expect((await store.byId(user.id))!.dateOfBirth, dob);
+    await expectLater(
+      store.setDateOfBirth(user.id, DateTime.utc(1991, 1, 1)),
+      throwsA(isA<DateOfBirthAlreadySetException>()),
+    );
+    expect((await store.byId(user.id))!.dateOfBirth, dob);
+    final renamed = await store.setDisplayName(user.id, 'Amina');
+    expect(renamed.dateOfBirth, dob);
+  });
+
+  test('setDateOfBirth rejects an unknown user', () async {
+    await expectLater(
+      store.setDateOfBirth('nobody', DateTime.utc(1990, 1, 1)),
+      throwsStateError,
+    );
+  });
 }

@@ -33,6 +33,29 @@ abstract interface class ArenaApi {
     int entry = 0,
   });
   Future<RoomView> getRoom(String token, String code);
+
+  /// Once only. 403 age_required still stores the date.
+  Future<UserView> setDateOfBirth(String token, String dateOfBirth);
+
+  Future<int> walletBalance(String token);
+  Future<List<WalletEntryView>> walletHistory(String token, {int limit = 50});
+  Future<PaymentView> deposit(
+    String token, {
+    required int amount,
+    required String msisdn,
+    String provider = 'fake',
+  });
+
+  /// Completes a fake-provider deposit. 404 when that route is off.
+  Future<PaymentView> confirmDeposit(String token, String paymentId);
+  Future<LimitsView> limits(String token);
+  Future<LimitsView> setLimits(
+    String token, {
+    int? daily,
+    int? weekly,
+    int? monthly,
+  });
+  Future<LimitsView> selfExclude(String token, String period);
 }
 
 /// Talks to the server through the shared [ArenaClient].
@@ -93,6 +116,47 @@ class HttpArenaApi implements ArenaApi {
   @override
   Future<RoomView> getRoom(String token, String code) =>
       _client(token).getRoom(code);
+
+  @override
+  Future<UserView> setDateOfBirth(String token, String dateOfBirth) =>
+      _client(token).setDateOfBirth(dateOfBirth);
+
+  @override
+  Future<int> walletBalance(String token) => _client(token).walletBalance();
+
+  @override
+  Future<List<WalletEntryView>> walletHistory(String token, {int limit = 50}) =>
+      _client(token).walletHistory(limit: limit);
+
+  @override
+  Future<PaymentView> deposit(
+    String token, {
+    required int amount,
+    required String msisdn,
+    String provider = 'fake',
+  }) => _client(
+    token,
+  ).deposit(amount: amount, msisdn: msisdn, provider: provider);
+
+  @override
+  Future<PaymentView> confirmDeposit(String token, String paymentId) =>
+      _client(token).confirmDeposit(paymentId);
+
+  @override
+  Future<LimitsView> limits(String token) => _client(token).limits();
+
+  @override
+  Future<LimitsView> setLimits(
+    String token, {
+    int? daily,
+    int? weekly,
+    int? monthly,
+  }) =>
+      _client(token).setLimits(daily: daily, weekly: weekly, monthly: monthly);
+
+  @override
+  Future<LimitsView> selfExclude(String token, String period) =>
+      _client(token).selfExclude(period);
 }
 
 final arenaApiProvider = Provider<ArenaApi>(

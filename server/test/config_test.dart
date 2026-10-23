@@ -18,6 +18,7 @@ void main() {
     expect(c.appVersion, 'dev');
     expect(c.databaseUrl, isNull);
     expect(c.paidTablesEnabled, isFalse);
+    expect(c.minAge, 25);
     expect(c.allowedOrigins, ServerConfig.defaultAllowedOrigins);
   });
 
@@ -111,5 +112,7 @@ void main() {
     refuses({'SESSION_SECRET': secret, 'PAYMENTS_PROVIDER': 'fake,mtn'});
     refuses({'SESSION_SECRET': secret, 'TURN_SECONDS': 'soon'});
     refuses({'SESSION_SECRET': secret, 'TURN_SECONDS': '0'});
+    refuses({'SESSION_SECRET': secret, 'MIN_AGE': '0'});
+    refuses({'SESSION_SECRET': secret, 'MIN_AGE': '121'});
   });
 }

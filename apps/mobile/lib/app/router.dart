@@ -14,6 +14,7 @@ import '../ui/login_screen.dart';
 import '../ui/profile_screen.dart';
 import '../ui/quick_match_screen.dart';
 import '../ui/room_screen.dart';
+import '../ui/wallet_screen.dart';
 
 /// Pages that never carry a `from` return address.
 bool _isEntry(String path) =>
@@ -73,6 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
       GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+      GoRoute(path: '/wallet', builder: (_, _) => const WalletScreen()),
       GoRoute(
         path: '/local',
         builder: (context, _) => LocalSetupScreen(

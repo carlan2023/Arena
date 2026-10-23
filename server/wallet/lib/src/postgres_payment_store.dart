@@ -70,6 +70,25 @@ class PostgresPaymentStore implements PaymentStore {
     );
   }
 
+  @override
+  Future<int> openDepositsSince(String userId, DateTime since) async {
+    final result = await _pool.execute(
+      Sql.named(
+        'SELECT COALESCE(SUM(amount), 0)::bigint FROM payments '
+        'WHERE user_id = @user AND created_at >= @since '
+        "AND status <> 'failed'",
+      ),
+      parameters: {
+        'user': userId,
+        'since': TypedValue(Type.timestampTz, since.toUtc()),
+      },
+    );
+    final value = result.first[0];
+    if (value is int) return value;
+    if (value is BigInt) return value.toInt();
+    throw StateError('expected a sum, got $value');
+  }
+
   Future<Payment?> _one(String sql, Map<String, Object?> parameters) async {
     final result = await _pool.execute(Sql.named(sql), parameters: parameters);
     return result.isEmpty ? null : _payment(result.first);

@@ -9,7 +9,8 @@ class PostgresUserStore implements UserStore {
 
   PostgresUserStore(Pool pool) : _pool = pool;
 
-  static const _columns = 'id, phone, display_name, created_at, avatar';
+  static const _columns =
+      'id, phone, display_name, created_at, avatar, date_of_birth';
 
   @override
   Future<User> upsertByIdentity(VerifiedIdentity identity) async {
@@ -73,11 +74,40 @@ class PostgresUserStore implements UserStore {
     return _user(result.first);
   }
 
+  @override
+  Future<User> setDateOfBirth(String id, DateTime dateOfBirth) async {
+    final result = await _pool.execute(
+      Sql.named(
+        'UPDATE users SET date_of_birth = CAST(@dob AS date) '
+        'WHERE id = @id AND date_of_birth IS NULL RETURNING $_columns',
+      ),
+      parameters: {'id': id, 'dob': _ymd(calendarDay(dateOfBirth))},
+    );
+    if (result.isNotEmpty) return _user(result.first);
+    if (await byId(id) == null) throw StateError('Unknown user $id');
+    throw const DateOfBirthAlreadySetException();
+  }
+
+  static String _ymd(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
   static User _user(ResultRow row) => User(
     id: row[0] as String,
     phone: row[1] as String,
     displayName: row[2] as String,
     createdAt: (row[3] as DateTime).toUtc(),
     avatar: row[4] as int,
+    dateOfBirth: _date(row[5]),
   );
+
+  static DateTime? _date(Object? value) {
+    if (value == null) return null;
+    if (value is DateTime) return calendarDay(value);
+    if (value is String) return calendarDay(DateTime.parse(value));
+    throw StateError('bad date_of_birth $value');
+  }
 }
