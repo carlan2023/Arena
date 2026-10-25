@@ -11,6 +11,9 @@ class User {
 
   /// One of the [avatarCount] preset avatars (D35).
   final int avatar;
+
+  /// UTC calendar day, set once. Null until the player sends it (M3.11).
+  final DateTime? dateOfBirth;
   final DateTime createdAt;
 
   const User({
@@ -19,6 +22,7 @@ class User {
     required this.displayName,
     required this.createdAt,
     this.avatar = 0,
+    this.dateOfBirth,
   });
 
   /// A guest has no verified phone and may only play free games.
@@ -30,6 +34,7 @@ class User {
     displayName: displayName ?? this.displayName,
     avatar: avatar ?? this.avatar,
     createdAt: createdAt,
+    dateOfBirth: dateOfBirth,
   );
 
   @override
@@ -39,10 +44,12 @@ class User {
       other.phone == phone &&
       other.displayName == displayName &&
       other.avatar == avatar &&
+      other.dateOfBirth == dateOfBirth &&
       other.createdAt == createdAt;
 
   @override
-  int get hashCode => Object.hash(id, phone, displayName, avatar, createdAt);
+  int get hashCode =>
+      Object.hash(id, phone, displayName, avatar, dateOfBirth, createdAt);
 
   @override
   String toString() => 'User($id, $phone, $displayName)';
@@ -61,6 +68,25 @@ abstract interface class UserStore {
 
   /// 0 to [avatarCount] - 1, else ArgumentError. StateError for an unknown id.
   Future<User> setAvatar(String id, int avatar);
+
+  /// Once only. A second call throws [DateOfBirthAlreadySetException].
+  /// StateError for an unknown id. Stored as a UTC calendar day.
+  Future<User> setDateOfBirth(String id, DateTime dateOfBirth);
+}
+
+/// POST /v1/me/date-of-birth was sent for an account that already has one.
+class DateOfBirthAlreadySetException implements Exception {
+  const DateOfBirthAlreadySetException();
+
+  @override
+  String toString() =>
+      'DateOfBirthAlreadySetException: date of birth is already set';
+}
+
+/// The UTC calendar day of [date], dropping the time.
+DateTime calendarDay(DateTime date) {
+  final utc = date.toUtc();
+  return DateTime.utc(utc.year, utc.month, utc.day);
 }
 
 /// Preset avatars, numbered 0 to 15 (D35). No photo upload.
@@ -168,5 +194,23 @@ class InMemoryUserStore implements UserStore {
     final user = _byId[id];
     if (user == null) throw StateError('Unknown user $id');
     return _byId[id] = user.copyWith(avatar: avatar);
+  }
+
+  @override
+  Future<User> setDateOfBirth(String id, DateTime dateOfBirth) async {
+    final user = _byId[id];
+    if (user == null) throw StateError('Unknown user $id');
+    if (user.dateOfBirth != null) {
+      throw const DateOfBirthAlreadySetException();
+    }
+    final saved = User(
+      id: user.id,
+      phone: user.phone,
+      displayName: user.displayName,
+      avatar: user.avatar,
+      createdAt: user.createdAt,
+      dateOfBirth: calendarDay(dateOfBirth),
+    );
+    return _byId[id] = saved;
   }
 }

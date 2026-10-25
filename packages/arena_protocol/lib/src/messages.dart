@@ -642,6 +642,9 @@ abstract final class ErrorCodes {
   static const ageRequired = 'age_required';
   static const selfExcluded = 'self_excluded';
   static const limitExceeded = 'limit_exceeded';
+
+  /// A date of birth was sent for an account that already has one.
+  static const alreadySet = 'already_set';
   static const alreadyClaimed = 'already_claimed';
 }
 

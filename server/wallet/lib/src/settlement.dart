@@ -1,4 +1,5 @@
 import 'ledger.dart';
+import 'limits.dart';
 import 'payout.dart';
 
 /// Coin table entries (D37). 0 is a free table.
@@ -49,18 +50,22 @@ class _Plan {
 /// more the second place gets its entry back first. UGX follows README
 /// section 10. Paid rooms are not opened by this service.
 ///
-/// Self exclusion is checked with the limits service (M3.11). Until then a
-/// charge fails only when a wallet cannot cover it.
+/// A UGX stake checks self exclusion when [limits] is set. A coin charge
+/// does not: coin tables stay open during an exclusion (M3.11).
 class SettlementService {
   SettlementService({
     required this.ledger,
     this.payout = const PayoutSettings(),
     this.coins = const CoinTableSettings(),
+    this.limits,
   });
 
   final Ledger ledger;
   final PayoutSettings payout;
   final CoinTableSettings coins;
+
+  /// Checked for UGX stakes only. Null in tests that do not cover exclusion.
+  final LimitsService? limits;
 
   static String stakeKey(String matchId) => 'stake:$matchId';
   static String settleKey(String matchId) => 'settle:$matchId';
@@ -76,6 +81,12 @@ class SettlementService {
       throw StateError('match $id was refunded');
     }
     if (await ledger.metadataFor(stakeKey(id)) != null) return;
+    final guard = limits;
+    if (guard != null && stakes.currency == Currency.ugx) {
+      for (final userId in stakes.userIds) {
+        if (!isBotUser(userId)) await guard.checkPlay(userId);
+      }
+    }
     final pot = AccountId.pot(id, stakes.currency);
     await ledger.post(
       LedgerTransaction(

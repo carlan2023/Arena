@@ -158,6 +158,11 @@ abstract interface class PaymentStore {
   /// Moves pending to succeeded or failed. Returns null if the payment was not
   /// pending (compare and set), which is how a duplicate is detected.
   Future<Payment?> settle(String id, PaymentStatus status);
+
+  /// Sum of deposits that are not failed, created at or after [since].
+  /// A pending deposit counts, so two requests cannot both slip under a limit
+  /// once the first has been stored.
+  Future<int> openDepositsSince(String userId, DateTime since);
 }
 
 class InMemoryPaymentStore implements PaymentStore {
@@ -204,5 +209,17 @@ class InMemoryPaymentStore implements PaymentStore {
       status: status,
       settledAt: _clock().toUtc(),
     );
+  }
+
+  @override
+  Future<int> openDepositsSince(String userId, DateTime since) async {
+    var sum = 0;
+    for (final payment in _payments.values) {
+      if (payment.userId != userId) continue;
+      if (payment.status == PaymentStatus.failed) continue;
+      if (payment.createdAt.isBefore(since)) continue;
+      sum += payment.amount;
+    }
+    return sum;
   }
 }

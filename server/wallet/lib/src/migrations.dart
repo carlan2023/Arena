@@ -51,4 +51,21 @@ CREATE INDEX payments_user_idx ON payments (user_id, created_at);
 CREATE INDEX payments_pending_idx ON payments (created_at) WHERE status = 'pending';
 ''',
   ),
+  Migration(
+    id: 'wallet_003_limits',
+    sql: '''
+CREATE TABLE player_limits (
+  user_id text PRIMARY KEY,
+  daily_limit bigint NOT NULL,
+  weekly_limit bigint NOT NULL,
+  monthly_limit bigint NOT NULL,
+  pending_daily bigint,
+  pending_weekly bigint,
+  pending_monthly bigint,
+  pending_at timestamptz,
+  excluded_until timestamptz,
+  permanent boolean NOT NULL DEFAULT false
+);
+''',
+  ),
 ];

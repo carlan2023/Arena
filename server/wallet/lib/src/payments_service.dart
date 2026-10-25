@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'ids.dart';
 import 'ledger.dart';
+import 'limits.dart';
 import 'payment.dart';
 
 /// Deposits: starts them with a provider, and credits the wallet once the
@@ -20,6 +21,9 @@ class PaymentsService {
   final Map<String, PaymentProvider> providers;
   final PaymentStore store;
   final Ledger ledger;
+
+  /// When set, a deposit is refused before it is stored (M3.11).
+  final LimitsService? limits;
   final DateTime Function() _clock;
   final void Function(String message) _log;
 
@@ -27,6 +31,7 @@ class PaymentsService {
     required this.providers,
     required this.store,
     required this.ledger,
+    this.limits,
     DateTime Function()? clock,
     void Function(String message)? log,
   }) : _clock = clock ?? DateTime.now,
@@ -57,6 +62,8 @@ class PaymentsService {
         'Phone number must be 256 followed by 9 digits',
       );
     }
+    final guard = limits;
+    if (guard != null) await guard.checkDeposit(userId, amount);
 
     var payment = await store.create(
       Payment(

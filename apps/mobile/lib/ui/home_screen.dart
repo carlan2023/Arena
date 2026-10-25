@@ -208,6 +208,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               icon: const Icon(Icons.phone_android),
               label: const Text('Pass and play'),
             ),
+            if (verified) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const Key('wallet'),
+                onPressed: () => context.push('/wallet'),
+                icon: const Icon(Icons.account_balance_wallet_outlined),
+                label: const Text('Wallet'),
+              ),
+            ],
             if (!verified) ...[
               const SizedBox(height: 32),
               Card(

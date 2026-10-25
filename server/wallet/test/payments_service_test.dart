@@ -47,6 +47,10 @@ class CrashingStore implements PaymentStore {
     }
     return inner.settle(id, status);
   }
+
+  @override
+  Future<int> openDepositsSince(String userId, DateTime since) =>
+      inner.openDepositsSince(userId, since);
 }
 
 void serviceTests(Future<Backend> Function() create) {
