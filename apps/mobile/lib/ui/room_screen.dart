@@ -198,9 +198,8 @@ class _Lobby extends ConsumerWidget {
         SelectableText(
           room.code,
           key: const Key('lobby-code'),
-          style: Theme.of(
-            context,
-          ).textTheme.displaySmall?.copyWith(letterSpacing: 6),
+          style: Theme.of(context).textTheme.displaySmall
+              ?.copyWith(letterSpacing: 6),
         ),
         const SizedBox(height: 8),
         FilledButton.icon(
@@ -216,6 +215,13 @@ class _Lobby extends ConsumerWidget {
           'Players ${room.players.length} of ${room.seats}',
           style: Theme.of(context).textTheme.titleMedium,
         ),
+        if (room.entry > 0) ...[
+          const SizedBox(height: 8),
+          Text(
+            '${room.entry} coins each, taken when the game starts',
+            key: const Key('coin-entry'),
+          ),
+        ],
         for (final p in room.players)
           ListTile(
             leading: ArenaAvatar(
@@ -265,6 +271,11 @@ class _Results extends StatelessWidget {
     final over = view.gameOver!;
     final me = view.you?.color;
     final won = me != null && over.winners.contains(me);
+    final youId = view.room?.players
+        .where((p) => p.color != null && p.color == me)
+        .map((p) => p.userId)
+        .firstOrNull;
+    final coins = youId == null ? 0 : (over.coinsDelta[youId] ?? 0);
     final names = <PlayerColor, String>{
       for (final p in view.room?.players ?? const <PlayerView>[])
         ?p.color: p.displayName,
@@ -277,6 +288,14 @@ class _Results extends StatelessWidget {
           key: const Key('result-title'),
           style: Theme.of(context).textTheme.headlineMedium,
         ),
+        if (coins != 0) ...[
+          const SizedBox(height: 8),
+          Text(
+            coins > 0 ? '+$coins coins' : '$coins coins',
+            key: const Key('coins-delta'),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ],
         const SizedBox(height: 16),
         for (var i = 0; i < over.ranking.length; i++)
           ListTile(

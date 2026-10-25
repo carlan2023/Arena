@@ -75,6 +75,7 @@ class ServerConfig {
     this.guestsPerHour = 30,
     this.wsMessagesPerSecond = 20,
     this.paidTablesEnabled = false,
+    this.minAge = 25,
     this.allowedOrigins = defaultAllowedOrigins,
   }) {
     _validate();
@@ -215,6 +216,7 @@ class ServerConfig {
       roomCreatesPerHour: intOf('ROOM_CREATES_PER_HOUR', 10),
       guestsPerHour: intOf('GUESTS_PER_HOUR', 30),
       wsMessagesPerSecond: intOf('WS_MESSAGES_PER_SECOND', 20),
+      minAge: intOf('MIN_AGE', 25),
       allowedOrigins: switch (opt('ALLOWED_ORIGINS')) {
         null => defaultAllowedOrigins,
         final v => [
@@ -275,6 +277,9 @@ class ServerConfig {
   /// Paid tables are refused with paid_tables_disabled until M3.9.
   final bool paidTablesEnabled;
 
+  /// Paid play and deposits need a date of birth at least this many years ago.
+  final int minAge;
+
   /// Browser origins that may call the API and open the web socket.
   final List<String> allowedOrigins;
 
@@ -318,6 +323,9 @@ class ServerConfig {
       throw ConfigException(
         'TURN_SECONDS and RECONNECT_GRACE_SECONDS must be above 0',
       );
+    }
+    if (minAge < 1 || minAge > 120) {
+      throw ConfigException('MIN_AGE must be from 1 to 120');
     }
   }
 }

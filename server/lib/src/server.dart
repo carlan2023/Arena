@@ -12,21 +12,30 @@ import 'package:arena_auth/arena_auth.dart'
         SessionTokens,
         TokenVerifier,
         UserStore;
+import 'package:arena_protocol/arena_protocol.dart';
 import 'package:arena_wallet/arena_wallet.dart' as wallet;
 import 'package:arena_wallet/arena_wallet.dart'
     show
+        AccountId,
         AirtelMoneyProvider,
         CoinService,
+        Currency,
         FakePaymentProvider,
         InMemoryLedger,
+        InMemoryLimitStore,
         InMemoryPaymentStore,
         Ledger,
+        LimitSettings,
+        LimitsService,
         MtnMomoProvider,
         PaymentProvider,
         PaymentStore,
         PaymentsService,
         PostgresLedger,
-        PostgresPaymentStore;
+        PostgresLimitStore,
+        PostgresPaymentStore,
+        SelfExcludedException,
+        SettlementService;
 import 'package:postgres/postgres.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -37,6 +46,7 @@ import 'clock.dart';
 import 'http/api.dart';
 import 'http/cors.dart';
 import 'http/ws.dart';
+import 'rooms/matchmaker.dart';
 import 'rooms/room_manager.dart';
 import 'store/live_store.dart';
 import 'store/match_log.dart';
@@ -216,10 +226,20 @@ Future<RunningServer> startServer(
         );
     }
   }
+  final limitStore = pool != null
+      ? PostgresLimitStore(pool)
+      : InMemoryLimitStore();
+  final limits = LimitsService(
+    store: limitStore,
+    payments: paymentStore,
+    settings: LimitSettings(minAge: config.minAge),
+    clock: now,
+  );
   final payments = PaymentsService(
     providers: providers,
     store: paymentStore,
     ledger: ledger,
+    limits: limits,
     clock: now,
     log: (m) => log('payments: $m'),
   );
@@ -240,6 +260,34 @@ Future<RunningServer> startServer(
     matchLog: matchLog,
     random: overrides.random,
     logError: (m, e, st) => log('ERROR $m: $e${st == null ? '' : '\n$st'}'),
+    allowTable: openCoinTables,
+    settlement: SettlementService(ledger: ledger, limits: limits),
+    balances: (userId) async => (
+      await ledger.balance(AccountId.wallet(userId)),
+      await ledger.balance(AccountId.wallet(userId, Currency.coin)),
+    ),
+    paidPlayBlock: (userId) async {
+      final user = await users.byId(userId);
+      if (user == null || user.isGuest) {
+        return (
+          ErrorCodes.phoneRequired,
+          'log in with your phone number to use the wallet and paid tables',
+        );
+      }
+      final dob = user.dateOfBirth;
+      if (dob == null || !isOldEnough(dob, now(), config.minAge)) {
+        return (
+          ErrorCodes.ageRequired,
+          'you must be ${config.minAge} or older',
+        );
+      }
+      try {
+        await limits.checkPlay(userId);
+      } on SelfExcludedException {
+        return (ErrorCodes.selfExcluded, 'self exclusion is in effect');
+      }
+      return null;
+    },
   );
   final restored = await rooms.restore();
   if (restored > 0) log('restored $restored live rooms');
@@ -252,6 +300,7 @@ Future<RunningServer> startServer(
     ledger: ledger,
     payments: payments,
     paymentStore: paymentStore,
+    limits: limits,
     rooms: rooms,
     matchLog: matchLog,
     coins: CoinService(ledger: ledger, clock: now),

@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:arena_protocol/arena_protocol.dart';
 import 'package:arena_protocol/fair_dice.dart';
+import 'package:arena_wallet/arena_wallet.dart';
 import 'package:ludo_engine/ludo_engine.dart';
 
 import '../clock.dart';
@@ -69,6 +70,9 @@ class RoomManager implements MatchHost {
     Random? random,
     ErrorLogger? logError,
     (String, String)? Function(QueueKey key, Connection conn)? allowTable,
+    this.settlement,
+    this.balances,
+    this.paidPlayBlock,
   }) : liveStore = liveStore ?? InMemoryLiveRoomStore(),
        matchLog = matchLog ?? InMemoryMatchLog(),
        _random = random ?? Random.secure(),
@@ -93,13 +97,25 @@ class RoomManager implements MatchHost {
   final Random _random;
   final ErrorLogger _logError;
 
+  /// Charges and pays coin tables. Null only in tests of free games.
+  final SettlementService? settlement;
+
+  /// UGX balance, then coins, for a wallet_update. Null when [settlement] is.
+  final Future<(int, int)> Function(String userId)? balances;
+
+  /// When set, a queue_join with a stake above 0 waits for this first.
+  /// A non-null pair is an error code and message; null means the queue may
+  /// continue. Coin and free queues do not call it.
+  final Future<(String, String)?> Function(String userId)? paidPlayBlock;
+
   final Map<String, Room> _rooms = {};
 
   /// userId to the code of the waiting or playing room where they hold a seat.
   final Map<String, String> _activeRoomOf = {};
 
-  final Set<Future<void>> _pendingWrites = {};
+  final Set<Future<Object?>> _pendingWrites = {};
   final Map<String, Future<void>> _writeChains = {};
+  final Map<String, Future<Set<String>>> _pendingStake = {};
 
   static void _printError(String message, Object? error, StackTrace? stack) {
     // ignore: avoid_print
@@ -121,6 +137,7 @@ class RoomManager implements MatchHost {
     required GameMode mode,
     required int seats,
     int stake = 0,
+    int entry = 0,
     RulesConfig rules = const RulesConfig(),
   }) {
     if (!validSeats(mode, seats)) {
@@ -129,7 +146,24 @@ class RoomManager implements MatchHost {
         '${mode.name} does not allow $seats seats',
       );
     }
-    if (stake < 0) throw RoomException(ErrorCodes.badRequest, 'bad stake');
+    if (stake < 0 || entry < 0) {
+      throw RoomException(ErrorCodes.badRequest, 'bad table');
+    }
+    if (stake > 0 && entry > 0) {
+      throw RoomException(
+        ErrorCodes.badRequest,
+        'a room cannot take both coins and a stake',
+      );
+    }
+    if (entry > 0 && mode == GameMode.teams) {
+      throw RoomException(
+        ErrorCodes.badRequest,
+        'coin tables are 1v1 and free for all',
+      );
+    }
+    if (entry > 0 && !const CoinTableSettings().allows(entry)) {
+      throw RoomException(ErrorCodes.badRequest, 'that coin table is not open');
+    }
     var code = newRoomCode(_random);
     while (_rooms.containsKey(code)) {
       code = newRoomCode(_random);
@@ -141,6 +175,7 @@ class RoomManager implements MatchHost {
       mode: mode,
       seatCount: seats,
       stake: stake,
+      entry: entry,
       rules: rules,
       serverSeed: generateServerSeed(_random),
       createdAtMs: clock.nowMs(),
@@ -156,6 +191,7 @@ class RoomManager implements MatchHost {
           mode: mode.name,
           seats: seats,
           stake: stake,
+          entry: entry,
           rules: rules.toJson(),
           ownerUserId: ownerUserId,
           createdAt: _now(),
@@ -190,7 +226,13 @@ class RoomManager implements MatchHost {
         if (!seat.forfeited && !seat.isBot) _startGrace(room, seat);
       }
       if (room.status == RoomStatus.waiting) {
-        if (room.seated.isEmpty) _armIdle(room);
+        if (room.seated.isEmpty) {
+          _armIdle(room);
+        } else if (room.entry > 0 &&
+            (room.stakesHeld || room.matchId != null)) {
+          // A charge was in flight, or had finished, when the process stopped.
+          _requestStart(room);
+        }
       } else {
         final remaining = max(0, (room.deadline ?? 0) - clock.nowMs());
         _armDecision(room, delay: Duration(milliseconds: remaining));
@@ -249,9 +291,32 @@ class RoomManager implements MatchHost {
         final room = _boundRoom(conn, msg, quiet: true);
         if (room != null) _emote(conn, room, msg);
       case QueueJoinMessage():
-        matchmaker.join(conn, msg);
+        final block = paidPlayBlock;
+        if (msg.stake > 0 && block != null) {
+          _track(_guardPaidQueue(conn, msg, block));
+        } else {
+          matchmaker.join(conn, msg);
+        }
       case QueueLeaveMessage():
         matchmaker.leave(conn, msg.cseq);
+    }
+  }
+
+  Future<void> _guardPaidQueue(
+    Connection conn,
+    QueueJoinMessage msg,
+    Future<(String, String)?> Function(String userId) block,
+  ) async {
+    try {
+      final refused = await block(conn.userId);
+      if (refused != null) {
+        _error(conn, msg.cseq, refused.$1, refused.$2);
+        return;
+      }
+      matchmaker.join(conn, msg);
+    } catch (e, st) {
+      _logError('paid queue check', e, st);
+      _error(conn, msg.cseq, ErrorCodes.internal, 'internal error');
     }
   }
 
@@ -262,10 +327,12 @@ class RoomManager implements MatchHost {
   void sendError(Connection conn, int? ref, String code, String message) =>
       _error(conn, ref, code, message);
 
-  /// Creates a room for a quick match, seats [players] in order and starts
-  /// the game at once. Each player then joins it with join_room, which the
-  /// room treats as a reconnect, so a player who never arrives is handled
-  /// by the usual reconnect grace and timeouts.
+  /// Creates a room for a quick match and seats [players] in order. A free
+  /// game starts before this returns. A coin game waits on [takePendingStake]:
+  /// the entries are collected first, and the game starts only if every human
+  /// can pay. Each player then joins with join_room, which the room treats as
+  /// a reconnect, so a player who never arrives is handled by the usual
+  /// reconnect grace and timeouts.
   @override
   String startMatch(QueueKey key, List<MatchedPlayer> players) {
     final room = createRoom(
@@ -273,6 +340,7 @@ class RoomManager implements MatchHost {
       mode: key.mode,
       seats: key.seats,
       stake: key.stake,
+      entry: key.entry,
     );
     for (var i = 0; i < players.length; i++) {
       final p = players[i];
@@ -293,10 +361,21 @@ class RoomManager implements MatchHost {
     }
     room.idleTimer?.cancel();
     room.idleTimer = null;
-    _start(room);
+    if (room.entry > 0) {
+      room.starting = true;
+      final charge = _chargeAndStart(room);
+      _pendingStake[room.code] = charge;
+      _track(charge);
+    } else {
+      _start(room);
+    }
     _persist(room);
     return room.code;
   }
+
+  @override
+  Future<Set<String>>? takePendingStake(String code) =>
+      _pendingStake.remove(code);
 
   /// A socket closed.
   void disconnected(Connection conn) {
@@ -376,7 +455,7 @@ class RoomManager implements MatchHost {
     _broadcastRoomState(room, replyTo: seat, ref: ref);
     if (room.seated.length == room.seatCount &&
         canStart(room.mode, room.seatCount, room.seatCount)) {
-      _start(room);
+      _requestStart(room);
     }
     _persist(room);
   }
@@ -408,6 +487,14 @@ class RoomManager implements MatchHost {
       conn.send(_roomState(room, seat, ref));
     }
     _persist(room);
+    // Quick match seats have no socket until this rejoin, so the stake
+    // update sent at the charge would have had nowhere to go.
+    if (room.entry > 0 &&
+        room.status == RoomStatus.playing &&
+        room.stakesHeld &&
+        !isBotUser(conn.userId)) {
+      _track(_sendBalance(conn, conn.userId, 'stake'));
+    }
   }
 
   void _bind(Connection conn, Room room, Seat seat) {
@@ -441,7 +528,7 @@ class RoomManager implements MatchHost {
         '${room.mode.name} cannot start with $players players',
       );
     }
-    _start(room);
+    _requestStart(room);
     _persist(room);
   }
 
@@ -457,7 +544,7 @@ class RoomManager implements MatchHost {
     room.clientSeed = [
       for (final s in seated) s.clientSeed ?? '${s.index}',
     ].join(':');
-    room.matchId = newUuid(_random);
+    room.matchId ??= newUuid(_random);
     room.state = GameState.newGame(
       mode: room.mode,
       players: colors,
@@ -473,6 +560,7 @@ class RoomManager implements MatchHost {
       mode: room.mode.name,
       rules: room.rules.toJson(),
       stake: room.stake,
+      entry: room.entry,
       serverSeedHash: room.serverSeedHash,
       clientSeed: room.clientSeed!,
       startedAt: _now(),
@@ -526,7 +614,7 @@ class RoomManager implements MatchHost {
       return null;
     }
     final state = room.state;
-    if (room.status != RoomStatus.playing || state == null) {
+    if (room.settling || room.status != RoomStatus.playing || state == null) {
       _error(conn, ref, ErrorCodes.wrongPhase, 'the game is not running');
       return null;
     }
@@ -836,6 +924,53 @@ class RoomManager implements MatchHost {
   }
 
   void _finish(Room room, {bool abandoned = false}) {
+    if (room.status == RoomStatus.finished || room.settling) return;
+    if (room.entry > 0 && room.stakesHeld && settlement != null) {
+      room.settling = true;
+      room.cancelTimers();
+      _track(_finishCoin(room, abandoned: abandoned));
+      return;
+    }
+    _finishNow(room, abandoned: abandoned);
+  }
+
+  /// Pays or refunds a coin pot, then closes the room. [abandoned] with no
+  /// moves played gives every entry back. Otherwise the ranking at this
+  /// moment is paid, forfeits already last in that ranking.
+  Future<void> _finishCoin(Room room, {required bool abandoned}) async {
+    final refund = abandoned && room.movesPlayed == 0;
+    var coinsDelta = const <String, int>{};
+    try {
+      final matchId = room.matchId;
+      if (matchId != null && room.stakesHeld) {
+        if (refund) {
+          await settlement!.refund(matchId);
+          coinsDelta = {
+            for (final seat in room.seated)
+              if (!isBotUser(seat.userId)) seat.userId: 0,
+          };
+        } else {
+          final order = [
+            for (final color in ranking(room.state!))
+              room.seatOfColor(color)!.userId,
+          ];
+          coinsDelta = await settlement!.settle(matchId, order);
+        }
+        room.stakesHeld = false;
+      }
+    } catch (e, st) {
+      _logError('coin settlement for room ${room.code}', e, st);
+    }
+    _finishNow(room, abandoned: abandoned, coinsDelta: coinsDelta);
+    await _pushBalances(room, refund ? 'refund' : 'payout');
+    _persist(room);
+  }
+
+  void _finishNow(
+    Room room, {
+    required bool abandoned,
+    Map<String, int> coinsDelta = const {},
+  }) {
     if (room.status == RoomStatus.finished) return;
     final state = room.state!;
     room.status = RoomStatus.finished;
@@ -863,6 +998,7 @@ class RoomManager implements MatchHost {
           serverSeed: seedHex,
           clientSeed: room.clientSeed!,
           walletDelta: const {},
+          coinsDelta: coinsDelta,
         ),
       );
     }
@@ -886,6 +1022,179 @@ class RoomManager implements MatchHost {
     _write(room, () => liveStore.delete(room.code));
     // Kept in memory for GET /v1/rooms/{code} until it goes idle.
     _armIdle(room);
+  }
+
+  /// Starts [room]. A coin table collects every entry first. If one player
+  /// cannot pay, nobody is charged, that player is removed, and the room
+  /// stays in the lobby.
+  void _requestStart(Room room) {
+    if (room.status != RoomStatus.waiting || room.starting || room.settling) {
+      return;
+    }
+    if (room.entry <= 0 || settlement == null) {
+      _start(room);
+      return;
+    }
+    if (room.stakesHeld) {
+      _start(room);
+      return;
+    }
+    room.starting = true;
+    _track(_chargeAndStart(room));
+  }
+
+  /// Collects [room]'s coin entry and starts it. Returns user ids removed
+  /// because their wallet was short.
+  Future<Set<String>> _chargeAndStart(Room room) async {
+    final removed = <String>{};
+    var retry = false;
+    try {
+      final charged = [for (final seat in room.seated) seat.userId];
+      final matchId = room.matchId ?? newUuid(_random);
+      room.matchId = matchId;
+      _persist(room);
+      try {
+        await settlement!.collectStakes(
+          MatchStakes(
+            matchId: matchId,
+            currency: Currency.coin,
+            perPlayer: room.entry,
+            userIds: charged,
+          ),
+        );
+      } on InsufficientFundsException catch (e) {
+        room.matchId = null;
+        final userId = e.account.ref;
+        removed.add(userId);
+        _kickForFunds(room, userId);
+        if (!_hasHuman(room)) {
+          _discardWaiting(room);
+        } else {
+          _persist(room);
+        }
+        return removed;
+      }
+      if (room.status != RoomStatus.waiting) {
+        await settlement!.refund(matchId);
+        room.matchId = null;
+        room.stakesHeld = false;
+        _persist(room);
+        return removed;
+      }
+      final now = [for (final seat in room.seated) seat.userId];
+      if (!_samePlayers(charged, now)) {
+        await settlement!.refund(matchId);
+        room.matchId = null;
+        room.stakesHeld = false;
+        _broadcastRoomState(room);
+        _persist(room);
+        retry =
+            room.seated.length == room.seatCount &&
+            canStart(room.mode, room.seatCount, room.seated.length);
+        return removed;
+      }
+      room.stakesHeld = true;
+      _start(room);
+      await _pushBalances(room, 'stake');
+      _persist(room);
+      return removed;
+    } catch (e, st) {
+      _logError('starting room ${room.code}', e, st);
+      final matchId = room.matchId;
+      if (room.status != RoomStatus.playing && matchId != null) {
+        try {
+          await settlement!.refund(matchId);
+        } catch (e2, st2) {
+          _logError('refund after a failed start', e2, st2);
+        }
+        room.matchId = null;
+        room.stakesHeld = false;
+      }
+      return removed;
+    } finally {
+      room.starting = false;
+      _pendingStake.remove(room.code);
+      if (retry) _requestStart(room);
+    }
+  }
+
+  void _kickForFunds(Room room, String userId) {
+    final seat = room.seatOfUser(userId);
+    if (seat == null || room.status != RoomStatus.waiting) return;
+    final conn = seat.connection;
+    if (conn != null) {
+      conn.roomCode = null;
+      seat.connection = null;
+    }
+    _removeFromLobby(room, seat);
+    if (conn != null) {
+      _error(
+        conn,
+        null,
+        ErrorCodes.insufficientFunds,
+        'not enough coins for this table',
+      );
+    }
+  }
+
+  bool _hasHuman(Room room) =>
+      room.seated.any((seat) => !isBotUser(seat.userId));
+
+  /// Drops a waiting room that has nobody left to play, such as a quick match
+  /// whose only human could not pay.
+  void _discardWaiting(Room room) {
+    if (room.status != RoomStatus.waiting) return;
+    room.cancelTimers();
+    for (final seat in room.seated.toList()) {
+      if (_activeRoomOf[seat.userId] == room.code) {
+        _activeRoomOf.remove(seat.userId);
+      }
+      room.seats[seat.index] = null;
+    }
+    if (_rooms[room.code] != room) return;
+    _rooms.remove(room.code);
+    _write(room, () => matchLog.roomStatusChanged(room.id, 'expired'));
+    _write(room, () => liveStore.delete(room.code));
+  }
+
+  Future<void> _pushBalances(Room room, String reason) async {
+    for (final seat in room.seated) {
+      final conn = seat.connection;
+      if (conn == null || isBotUser(seat.userId)) continue;
+      await _sendBalance(conn, seat.userId, reason);
+    }
+  }
+
+  Future<void> _sendBalance(
+    Connection conn,
+    String userId,
+    String reason,
+  ) async {
+    final lookup = balances;
+    if (lookup == null) return;
+    try {
+      final (ugx, coins) = await lookup(userId);
+      conn.send(
+        WalletUpdateMessage(balance: ugx, coins: coins, reason: reason),
+      );
+    } catch (e, st) {
+      _logError('wallet update for $userId', e, st);
+    }
+  }
+
+  void _track(Future<Object?> op) {
+    _pendingWrites.add(op);
+    op.whenComplete(() => _pendingWrites.remove(op));
+  }
+
+  bool _samePlayers(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    final left = [...a]..sort();
+    final right = [...b]..sort();
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) return false;
+    }
+    return true;
   }
 
   /// Removes a room that stays empty (waiting) or finished for roomIdle.
@@ -993,6 +1302,7 @@ class RoomManager implements MatchHost {
       auto: auto,
       at: _now(),
     );
+    if (kind == EventKinds.move) room.movesPlayed++;
     _write(room, () => matchLog.event(record));
   }
 

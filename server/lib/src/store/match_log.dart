@@ -8,6 +8,7 @@ class RoomRecord {
     required this.mode,
     required this.seats,
     required this.stake,
+    this.entry = 0,
     required this.rules,
     required this.ownerUserId,
     required this.createdAt,
@@ -17,6 +18,9 @@ class RoomRecord {
   final String mode;
   final int seats;
   final int stake;
+
+  /// Coins per player. 0 until a coin table (M3.4).
+  final int entry;
   final Json rules;
   final String ownerUserId;
   final DateTime createdAt;
@@ -50,6 +54,7 @@ class MatchStartRecord {
     required this.mode,
     required this.rules,
     required this.stake,
+    this.entry = 0,
     required this.serverSeedHash,
     required this.clientSeed,
     required this.startedAt,
@@ -60,6 +65,7 @@ class MatchStartRecord {
   final String mode;
   final Json rules;
   final int stake;
+  final int entry;
   final String serverSeedHash;
   final String clientSeed;
   final DateTime startedAt;
@@ -176,6 +182,7 @@ class RecentMatch {
     required this.matchId,
     required this.mode,
     required this.stake,
+    this.entry = 0,
     required this.status,
     required this.endedAt,
     required this.players,
@@ -183,6 +190,7 @@ class RecentMatch {
   final String matchId;
   final String mode;
   final int stake;
+  final int entry;
   final MatchStatus status;
   final DateTime endedAt;
   final List<RecentMatchPlayer> players;
@@ -284,6 +292,7 @@ class InMemoryMatchLog implements MatchLog {
     matchId: m.matchId,
     mode: m.mode,
     stake: m.stake,
+    entry: m.entry,
     status: end.status,
     endedAt: end.endedAt,
     players: [

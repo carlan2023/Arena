@@ -14,6 +14,7 @@ import '../ui/login_screen.dart';
 import '../ui/profile_screen.dart';
 import '../ui/quick_match_screen.dart';
 import '../ui/room_screen.dart';
+import '../ui/wallet_screen.dart';
 
 /// Pages that never carry a `from` return address.
 bool _isEntry(String path) =>
@@ -22,12 +23,19 @@ bool _isEntry(String path) =>
 String _withFrom(String path, String? from) =>
     from == null ? path : '$path?from=${Uri.encodeComponent(from)}';
 
-/// `/quick/oneVsOne` or `/quick/freeForAll`: free tables.
-QuickMatchTable? _quickTable(String mode) => switch (mode) {
-  'oneVsOne' => const QuickMatchTable(GameMode.oneVsOne),
-  'freeForAll' => const QuickMatchTable(GameMode.freeForAll),
-  _ => null,
-};
+/// `/quick/oneVsOne` or `/quick/freeForAll`, and the same with a coin entry.
+QuickMatchTable? _quickTable(String mode, [String? entryRaw]) {
+  final parsed = switch (mode) {
+    'oneVsOne' => GameMode.oneVsOne,
+    'freeForAll' => GameMode.freeForAll,
+    _ => null,
+  };
+  if (parsed == null) return null;
+  if (entryRaw == null) return QuickMatchTable(parsed);
+  final entry = int.tryParse(entryRaw);
+  if (entry == null || !const [0, 50, 200, 1000].contains(entry)) return null;
+  return QuickMatchTable(parsed, entry: entry);
+}
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier(0);
@@ -66,6 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
       GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+      GoRoute(path: '/wallet', builder: (_, _) => const WalletScreen()),
       GoRoute(
         path: '/local',
         builder: (context, _) => LocalSetupScreen(
@@ -85,6 +94,23 @@ final routerProvider = Provider<GoRouter>((ref) {
             _quickTable(state.pathParameters['mode']!) == null ? '/' : null,
         builder: (_, state) => QuickMatchScreen(
           table: _quickTable(state.pathParameters['mode']!)!,
+        ),
+      ),
+      GoRoute(
+        path: '/quick/:mode/:entry',
+        redirect: (_, state) =>
+            _quickTable(
+                  state.pathParameters['mode']!,
+                  state.pathParameters['entry'],
+                ) ==
+                null
+            ? '/'
+            : null,
+        builder: (_, state) => QuickMatchScreen(
+          table: _quickTable(
+            state.pathParameters['mode']!,
+            state.pathParameters['entry'],
+          )!,
         ),
       ),
       GoRoute(

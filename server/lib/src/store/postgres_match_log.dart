@@ -10,8 +10,8 @@ class PostgresMatchLog implements MatchLog {
   Future<void> roomCreated(RoomRecord room) async {
     await _pool.execute(
       Sql.named('''
-INSERT INTO rooms (id, code, mode, seats, stake, rules, owner_user_id, status, created_at, updated_at)
-VALUES (@id:uuid, @code, @mode, @seats:int4, @stake:int8, @rules:jsonb, @owner, 'waiting', @at:timestamptz, @at:timestamptz)
+INSERT INTO rooms (id, code, mode, seats, stake, entry, rules, owner_user_id, status, created_at, updated_at)
+VALUES (@id:uuid, @code, @mode, @seats:int4, @stake:int8, @entry:int8, @rules:jsonb, @owner, 'waiting', @at:timestamptz, @at:timestamptz)
 ON CONFLICT (id) DO NOTHING'''),
       parameters: {
         'id': room.id,
@@ -19,6 +19,7 @@ ON CONFLICT (id) DO NOTHING'''),
         'mode': room.mode,
         'seats': room.seats,
         'stake': room.stake,
+        'entry': room.entry,
         'rules': room.rules,
         'owner': room.ownerUserId,
         'at': room.createdAt.toUtc(),
@@ -41,8 +42,8 @@ ON CONFLICT (id) DO NOTHING'''),
     await _pool.runTx((tx) async {
       await tx.execute(
         Sql.named('''
-INSERT INTO matches (id, room_id, mode, rules, stake, server_seed_hash, client_seed, status, started_at)
-VALUES (@id:uuid, @room:uuid, @mode, @rules:jsonb, @stake:int8, @hash, @client, 'playing', @at:timestamptz)
+INSERT INTO matches (id, room_id, mode, rules, stake, entry, server_seed_hash, client_seed, status, started_at)
+VALUES (@id:uuid, @room:uuid, @mode, @rules:jsonb, @stake:int8, @entry:int8, @hash, @client, 'playing', @at:timestamptz)
 ON CONFLICT (id) DO NOTHING'''),
         parameters: {
           'id': m.matchId,
@@ -50,6 +51,7 @@ ON CONFLICT (id) DO NOTHING'''),
           'mode': m.mode,
           'rules': m.rules,
           'stake': m.stake,
+          'entry': m.entry,
           'hash': m.serverSeedHash,
           'client': m.clientSeed,
           'at': m.startedAt.toUtc(),
@@ -185,7 +187,8 @@ WHERE match_id = @id:uuid ORDER BY idx'''),
     final rows = await _pool.execute(
       Sql.named('''
 SELECT m.id::text, m.mode, m.stake, m.status, m.ended_at,
-       p.seat, p.user_id, p.display_name, p.avatar, p.is_bot, p.finish_place
+       p.seat, p.user_id, p.display_name, p.avatar, p.is_bot, p.finish_place,
+       m.entry
 FROM (
   SELECT m.id FROM matches m
   JOIN match_players me ON me.match_id = m.id AND me.user_id = @user
@@ -209,6 +212,7 @@ ORDER BY m.ended_at DESC, m.id, p.seat'''),
             matchId: id,
             mode: r[1] as String,
             stake: r[2] as int,
+            entry: r[11] as int,
             status: MatchStatus.values.byName(r[3] as String),
             endedAt: (r[4] as DateTime).toUtc(),
             players: [],

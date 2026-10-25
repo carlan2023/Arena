@@ -95,6 +95,13 @@ void main() {
         }),
         phoneRequired(),
       );
+      await expectLater(g.request('GET', '/v1/wallet/limits'), phoneRequired());
+      await expectLater(
+        g.request('POST', '/v1/me/date-of-birth', {
+          'dateOfBirth': '1990-01-01',
+        }),
+        phoneRequired(),
+      );
       await expectLater(
         g.createRoom(mode: GameMode.oneVsOne, seats: 2, stake: 1000),
         phoneRequired(),
@@ -182,6 +189,7 @@ void main() {
         c.createRoom(mode: GameMode.teams, seats: 2),
         throwsA(isA<ApiError>().having((e) => e.code, 'code', 'bad_request')),
       );
+      await c.setDateOfBirth('1990-01-01');
       await expectLater(
         c.createRoom(stake: 1000),
         throwsA(
@@ -194,6 +202,78 @@ void main() {
         c.createRoom(),
         throwsA(isA<ApiError>().having((e) => e.status, 'status', 429)),
       );
+    });
+
+    test('tables list coin entries and keep paid stakes off', () async {
+      final c = await loggedIn('+256772000020');
+      final tables = TablesView.fromJson(await c.request('GET', '/v1/tables'));
+      expect(tables.coin, [0, 50, 200, 1000]);
+      expect(tables.paid, [1000, 2000, 5000, 10000, 20000, 50000]);
+      expect(tables.paidEnabled, isFalse);
+      final guest = ArenaClient(baseUrl: server.baseUrl);
+      clients.add(guest);
+      await guest.guest();
+      final room = await guest.createRoom(entry: 50);
+      expect(room.entry, 50);
+      await expectLater(
+        guest.createRoom(entry: 75),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'bad_request')),
+      );
+      await expectLater(
+        guest.createRoom(mode: GameMode.teams, seats: 4, entry: 50),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'bad_request')),
+      );
+      await c.setDateOfBirth('1990-01-01');
+      await expectLater(
+        c.createRoom(stake: 1000),
+        throwsA(
+          isA<ApiError>().having((e) => e.code, 'code', 'paid_tables_disabled'),
+        ),
+      );
+    });
+
+    test('a coin room charges both players when it starts', () async {
+      final a = ArenaClient(baseUrl: server.baseUrl);
+      final b = ArenaClient(baseUrl: server.baseUrl);
+      clients.addAll([a, b]);
+      await a.guest();
+      await b.guest();
+      expect((await a.coins()).balance, 500);
+      final room = await a.createRoom(entry: 50);
+      await a.connect();
+      await b.connect();
+      a.joinRoom(room.code, clientSeed: 'alpha');
+      b.joinRoom(room.code, clientSeed: 'beta');
+      final playing = await a.next<RoomStateMessage>(
+        where: (m) => m.room.status == RoomStatus.playing,
+      );
+      expect(playing.room.entry, 50);
+      final update = await a.next<WalletUpdateMessage>();
+      expect((update.reason, update.coins), ('stake', 450));
+      expect((await a.coins()).balance, 450);
+      expect((await b.coins()).balance, 450);
+    });
+
+    test('a short coin wallet is removed and nobody is charged', () async {
+      final a = ArenaClient(baseUrl: server.baseUrl);
+      final b = ArenaClient(baseUrl: server.baseUrl);
+      clients.addAll([a, b]);
+      await a.guest();
+      await b.guest();
+      final room = await a.createRoom(entry: 1000);
+      await a.connect();
+      await b.connect();
+      a.joinRoom(room.code, clientSeed: 'alpha');
+      b.joinRoom(room.code, clientSeed: 'beta');
+      final err = await a.next<ErrorMessage>();
+      expect(err.code, 'insufficient_funds');
+      final left = await b.next<RoomStateMessage>(
+        where: (m) => m.room.players.length == 1,
+      );
+      expect(left.room.status, RoomStatus.waiting);
+      expect(left.room.players.single.userId, b.user!.id);
+      expect((await a.coins()).balance, 500);
+      expect((await b.coins()).balance, 500);
     });
 
     test('landing page', () async {
@@ -214,6 +294,7 @@ void main() {
         'balance': 0,
         'currency': 'UGX',
       });
+      expect((await c.setDateOfBirth('1990-01-01')).dateOfBirth, '1990-01-01');
       final p = PaymentView.fromJson(
         await c.request('POST', '/v1/wallet/deposits', {
           'amount': 5000,
@@ -264,6 +345,68 @@ void main() {
         }),
         throwsA(isA<ApiError>().having((e) => e.status, 'status', 400)),
       );
+    });
+
+    test('age, deposit limits and self exclusion', () async {
+      final young = await loggedIn('+256772000030');
+      await expectLater(
+        young.setDateOfBirth('2010-01-01'),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'age_required')),
+      );
+      expect((await young.me()).dateOfBirth, '2010-01-01');
+      await expectLater(
+        young.setDateOfBirth('1990-01-01'),
+        throwsA(
+          isA<ApiError>()
+              .having((e) => e.status, 'status', 409)
+              .having((e) => e.code, 'code', 'already_set'),
+        ),
+      );
+      await expectLater(
+        young.deposit(amount: 5000, msisdn: '256772000030'),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'age_required')),
+      );
+      await expectLater(
+        young.createRoom(stake: 1000),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'age_required')),
+      );
+
+      final adult = await loggedIn('+256772000031');
+      await expectLater(
+        adult.setDateOfBirth('2099-01-01'),
+        throwsA(isA<ApiError>().having((e) => e.status, 'status', 400)),
+      );
+      expect((await adult.me()).dateOfBirth, isNull);
+      expect((await adult.limits()).daily, 1000000);
+      await adult.setDateOfBirth('1990-01-01');
+      await expectLater(
+        adult.createRoom(stake: 1000),
+        throwsA(
+          isA<ApiError>().having((e) => e.code, 'code', 'paid_tables_disabled'),
+        ),
+      );
+      expect((await adult.setLimits(daily: 1000)).daily, 1000);
+      await expectLater(
+        adult.deposit(amount: 5000, msisdn: '256772000031'),
+        throwsA(
+          isA<ApiError>().having((e) => e.code, 'code', 'limit_exceeded'),
+        ),
+      );
+      expect(await adult.walletBalance(), 0);
+      final paid = await adult.deposit(amount: 500, msisdn: '256772000031');
+      expect((await adult.confirmDeposit(paid.id)).status, 'succeeded');
+      expect(await adult.walletBalance(), 500);
+
+      await adult.selfExclude('7d');
+      await expectLater(
+        adult.deposit(amount: 500, msisdn: '256772000031'),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'self_excluded')),
+      );
+      await expectLater(
+        adult.createRoom(stake: 1000),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'self_excluded')),
+      );
+      expect((await adult.createRoom(entry: 50)).entry, 50);
     });
 
     test('verify before the end is refused, unknown match is 404', () async {
@@ -367,6 +510,30 @@ void main() {
         final broadcast = seqs.toSet().toList()..sort();
         expect(broadcast.last - broadcast.first + 1, broadcast.length);
       }
+    });
+
+    test('a paid queue checks the phone, then age, then paid tables', () async {
+      final guest = ArenaClient(baseUrl: server.baseUrl);
+      clients.add(guest);
+      await guest.guest();
+      await guest.connect();
+      guest.queueJoin(stake: 1000);
+      expect((await guest.next<ErrorMessage>()).code, 'phone_required');
+
+      final young = await loggedIn('+256772000032');
+      await expectLater(
+        young.setDateOfBirth('2010-06-01'),
+        throwsA(isA<ApiError>().having((e) => e.code, 'code', 'age_required')),
+      );
+      await young.connect();
+      young.queueJoin(stake: 1000);
+      expect((await young.next<ErrorMessage>()).code, 'age_required');
+
+      final adult = await loggedIn('+256772000033');
+      await adult.setDateOfBirth('1990-01-01');
+      await adult.connect();
+      adult.queueJoin(stake: 1000);
+      expect((await adult.next<ErrorMessage>()).code, 'paid_tables_disabled');
     });
 
     test('reconnect after a dropped socket', () async {

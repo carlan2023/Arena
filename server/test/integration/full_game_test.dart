@@ -175,6 +175,7 @@ void main() {
   test('a fake deposit shows up in the wallet once', () async {
     final alice = ArenaClient(baseUrl: server.baseUrl);
     await alice.login('fake:+256700000001');
+    await alice.setDateOfBirth('1990-01-01');
     final payment = await alice.request('POST', '/v1/wallet/deposits', {
       'amount': 5000,
       'msisdn': '256700000001',

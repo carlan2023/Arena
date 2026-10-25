@@ -76,12 +76,14 @@ class ArenaClient {
     GameMode mode = GameMode.oneVsOne,
     int seats = 2,
     int stake = 0,
+    int entry = 0,
     RulesConfig? rules,
   }) async => RoomView.fromJson(
     await _send('POST', '/v1/rooms', {
       'mode': mode.name,
       'seats': seats,
       'stake': stake,
+      'entry': entry,
       'rules': ?rules?.toJson(),
     }),
   );
@@ -102,6 +104,76 @@ class ArenaClient {
   /// was claimed today.
   Future<CoinGrantView> claimDailyReward() async =>
       CoinGrantView.fromJson(await _send('POST', '/v1/coins/daily'));
+
+  /// Open coin entries and paid stakes.
+  Future<TablesView> tables() async =>
+      TablesView.fromJson(await _send('GET', '/v1/tables'));
+
+  /// POST /v1/me/date-of-birth. Once only. Under MIN_AGE the server answers
+  /// 403 age_required and still stores the date.
+  Future<UserView> setDateOfBirth(String dateOfBirth) async =>
+      UserView.fromJson(
+        await _send('POST', '/v1/me/date-of-birth', {
+          'dateOfBirth': dateOfBirth,
+        }),
+      );
+
+  /// UGX balance. Needs a phone login. Age is not required to read it.
+  Future<int> walletBalance() async {
+    final body = await _send('GET', '/v1/wallet');
+    final balance = body['balance'];
+    if (balance is! int) throw ProtocolException('balance must be an integer');
+    return balance;
+  }
+
+  /// Newest first. [limit] is 1 to 200.
+  Future<List<WalletEntryView>> walletHistory({int limit = 50}) async {
+    final body = await _send('GET', '/v1/wallet/history?limit=$limit');
+    return [
+      for (final entry in body['entries'] as List)
+        WalletEntryView.fromJson((entry as Map).cast()),
+    ];
+  }
+
+  /// Starts a deposit. With the fake provider, [confirmDeposit] completes it.
+  Future<PaymentView> deposit({
+    required int amount,
+    required String msisdn,
+    String provider = 'fake',
+  }) async => PaymentView.fromJson(
+    await _send('POST', '/v1/wallet/deposits', {
+      'amount': amount,
+      'msisdn': msisdn,
+      'provider': provider,
+    }),
+  );
+
+  /// POST /v1/dev/payments/{id}/confirm. 404 when the fake provider is off.
+  Future<PaymentView> confirmDeposit(
+    String paymentId, {
+    String status = 'succeeded',
+  }) async => PaymentView.fromJson(
+    await _send('POST', '/v1/dev/payments/$paymentId/confirm', {
+      'status': status,
+    }),
+  );
+
+  Future<LimitsView> limits() async =>
+      LimitsView.fromJson(await _send('GET', '/v1/wallet/limits'));
+
+  Future<LimitsView> setLimits({int? daily, int? weekly, int? monthly}) async =>
+      LimitsView.fromJson(
+        await _send('PUT', '/v1/wallet/limits', {
+          'daily': ?daily,
+          'weekly': ?weekly,
+          'monthly': ?monthly,
+        }),
+      );
+
+  /// [period] is `1d`, `7d`, `30d`, `6m` or `permanent`.
+  Future<LimitsView> selfExclude(String period) async => LimitsView.fromJson(
+    await _send('POST', '/v1/wallet/self-exclusion', {'period': period}),
+  );
 
   /// The caller's last 20 ended matches, newest first.
   Future<List<RecentMatchView>> recentMatches() async {

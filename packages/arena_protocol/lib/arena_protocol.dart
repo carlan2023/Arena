@@ -4,6 +4,7 @@
 /// fair dice functions in `package:arena_protocol/fair_dice.dart`.
 library;
 
+export 'src/age.dart';
 export 'src/json.dart' show ProtocolException, Json;
 export 'src/messages.dart';
 export 'src/models.dart';

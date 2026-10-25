@@ -24,4 +24,10 @@ ALTER TABLE users ADD COLUMN avatar smallint NOT NULL DEFAULT 0
   CHECK (avatar BETWEEN 0 AND 15);
 ''',
   ),
+  Migration(
+    id: 'auth_003_date_of_birth',
+    sql: '''
+ALTER TABLE users ADD COLUMN date_of_birth date;
+''',
+  ),
 ];

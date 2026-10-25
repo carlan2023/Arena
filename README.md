@@ -244,14 +244,14 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | M3.1 | Quick match queue for 1v1 and four players | Done | 13 Oct 2026 |
 | M3.2 | Bots fill empty seats in free games after 20 seconds | Done | 13 Oct 2026 |
 | M3.3 | Profiles and avatars | Done | 13 Oct 2026 |
-| M3.4 | Coins and daily reward. Coin balance, signup coins and daily reward done; coin tables next | In progress | |
+| M3.4 | Coins, daily reward and coin tables | Done | 23 Oct 2026 |
 | M3.5 | Luganda translation | Not started | |
 | M3.6 | Sound and vibration | Not started | |
 | M3.7 | Interactive tutorial | Not started | |
 | M3.8 | 2v2 teams, which moves to January if time runs short | Not started | |
 | M3.9 | Paid tables: stake taken when the game starts, pot held until the game ends, then winner paid and our share taken | Not started | |
-| M3.10 | Wallet screen with balance, deposit and history | Not started | |
-| M3.11 | Deposit limits, minimum age check and self exclusion setting | Not started | |
+| M3.10 | Wallet screen with balance, deposit and history | Done | 23 Oct 2026 |
+| M3.11 | Deposit limits, minimum age check and self exclusion setting | Done | 23 Oct 2026 |
 | M3.12 | Live deposits with real providers, behind a server setting | Not started | |
 | M3.13 | Withdrawals to mobile money, which moves to January if time runs short | Not started | |
 
@@ -314,6 +314,8 @@ Done when strangers can find a game within 20 seconds, a paid 1v1 game settles c
 | 13 Oct 2026 | M3.2 | Bots fill empty quick match seats (D50). A free 1v1 or four player search that has not filled after 20 seconds (BOT_FILL_SECONDS) starts with normal level bots, shown with a robot icon and named Bot 2, Bot 3 and so on. The search screen counts down to it. Paid searches never get bots and give up after 60 seconds (PAID_QUEUE_SECONDS) |
 | 13 Oct 2026 | M3.3 | Profiles (D51). A profile screen from the home screen with the player's name, a choice of 16 preset avatars and their last 20 games. Avatars show in the lobby and on the seat cards at the board. The server stores the avatar with the account, keeps each player's name and avatar in the match log, and adds GET /v1/matches/recent. PATCH /v1/me now takes a name, an avatar or both |
 | 13 Oct 2026 | M3.4 | Coins, part 1 (D52). Every account gets 500 coins once. A daily reward of 100 coins rises by 20 a day in a row up to 220, and resets after a missed day, counted in Kampala days. New GET /v1/coins and POST /v1/coins/daily routes, with a claim made twice at once granting once. The home screen shows the coin balance with a Claim button, or the time to the next reward |
+| 23 Oct 2026 | M3.4 | Coins, part 2 (D53). Coin tables are 0, 50, 200 and 1000, taken from every seat when the game starts. If one player cannot pay, nobody is charged and that player is removed. The winner takes the pot; in a game of four or more the second place gets its entry back. A bot's entry is paid by the house coin account, and coins a bot wins go back to the house. A game abandoned before any move refunds every entry; after a move it pays the ranking. Paid stakes stay off |
+| 23 Oct 2026 | M3.10 M3.11 | Wallet screen and player protection (D54). A phone login opens the wallet: balance, a test deposit through the fake provider, and history, plus time on the screen and the day's net. A date of birth is stored once; under 25 the wallet stays closed. Deposit limits default to the house caps and a raise waits 24 hours. Self exclusion blocks deposits and paid play and cannot be shortened. Coin tables stay open. Paid stakes stay off and no real money moves |
 
 ## 5. Scope of the first release
 

@@ -140,6 +140,7 @@ void main() {
         walletDelta: {'u1': 10},
       ),
       const ErrorMessage(ref: 3, code: ErrorCodes.illegalMove, message: 'no'),
+      const WalletUpdateMessage(balance: 0, coins: 450, reason: 'stake'),
       const PongMessage(ref: 7, serverNow: 5),
       const QueueStatusMessage(
         ref: 8,
@@ -175,9 +176,9 @@ void main() {
   });
 
   test('queue_join defaults to a free table', () {
-    final m =
-        ClientMessage.decode('{"type":"queue_join","mode":"oneVsOne"}')
-            as QueueJoinMessage;
+    final m = ClientMessage.decode(
+      '{"type":"queue_join","mode":"oneVsOne"}',
+    ) as QueueJoinMessage;
     expect((m.entry, m.stake, m.clientSeed), (0, 0, null));
     expect(
       () => ClientMessage.decode('{"type":"queue_join","mode":"nope"}'),
@@ -231,6 +232,14 @@ void main() {
 
   test('models round trip', () {
     expect(RoomView.fromJson(room.toJson()).toJson(), room.toJson());
+    final withoutEntry = room.toJson()..remove('entry');
+    expect(RoomView.fromJson(withoutEntry).entry, 0);
+    final tables = const TablesView(
+      coin: [0, 50, 200, 1000],
+      paid: [1000, 5000],
+      paidEnabled: false,
+    );
+    expect(TablesView.fromJson(tables.toJson()).toJson(), tables.toJson());
     final p = PaymentView(
       id: 'p',
       provider: 'fake',

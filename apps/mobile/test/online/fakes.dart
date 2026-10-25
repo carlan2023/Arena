@@ -72,6 +72,139 @@ class FakeApi implements ArenaApi {
       phone: user.phone,
       displayName: name ?? user.displayName,
       avatar: avatar ?? user.avatar,
+      coins: user.coins,
+      dateOfBirth: user.dateOfBirth,
+    );
+  }
+
+  @override
+  Future<UserView> setDateOfBirth(String token, String dateOfBirth) async {
+    calls.add('dob $dateOfBirth');
+    if (failWith case final e?) throw e;
+    final parsed = parseDateOfBirth(dateOfBirth);
+    user = UserView(
+      id: user.id,
+      phone: user.phone,
+      displayName: user.displayName,
+      avatar: user.avatar,
+      coins: user.coins,
+      dateOfBirth: dateOfBirth,
+    );
+    if (parsed == null || !isOldEnough(parsed, DateTime.now().toUtc(), 25)) {
+      throw const ApiError(403, 'age_required', 'you must be 25 or older');
+    }
+    return user;
+  }
+
+  int balance = 0;
+  final history = <WalletEntryView>[];
+  LimitsView limitsView = const LimitsView(
+    daily: 1000000,
+    weekly: 7000000,
+    monthly: 30000000,
+    permanent: false,
+  );
+  PaymentView? _pendingDeposit;
+
+  @override
+  Future<int> walletBalance(String token) async {
+    calls.add('wallet $token');
+    return balance;
+  }
+
+  @override
+  Future<List<WalletEntryView>> walletHistory(
+    String token, {
+    int limit = 50,
+  }) async {
+    calls.add('history $token $limit');
+    return history.take(limit).toList();
+  }
+
+  @override
+  Future<PaymentView> deposit(
+    String token, {
+    required int amount,
+    required String msisdn,
+    String provider = 'fake',
+  }) async {
+    calls.add('deposit $amount $msisdn $provider');
+    if (failWith case final e?) throw e;
+    if (limitsView.excludedAt(DateTime.now().toUtc())) {
+      throw const ApiError(403, 'self_excluded', 'self exclusion is in effect');
+    }
+    if (amount < 500 || amount > 5000000) {
+      throw const ApiError(400, 'bad_request', 'amount');
+    }
+    return _pendingDeposit = PaymentView(
+      id: 'pay-1',
+      provider: 'fake',
+      amount: amount,
+      status: 'pending',
+      createdAt: DateTime.now().toUtc(),
+    );
+  }
+
+  @override
+  Future<PaymentView> confirmDeposit(String token, String paymentId) async {
+    calls.add('confirm $paymentId');
+    final amount = _pendingDeposit?.amount ?? 0;
+    balance += amount;
+    history.insert(
+      0,
+      WalletEntryView(
+        txId: 'tx-1',
+        kind: 'deposit',
+        amount: amount,
+        balanceAfter: balance,
+        at: DateTime.now().toUtc(),
+      ),
+    );
+    return PaymentView(
+      id: paymentId,
+      provider: 'fake',
+      amount: amount,
+      status: 'succeeded',
+      createdAt: DateTime.now().toUtc(),
+    );
+  }
+
+  @override
+  Future<LimitsView> limits(String token) async {
+    calls.add('limits $token');
+    return limitsView;
+  }
+
+  @override
+  Future<LimitsView> setLimits(
+    String token, {
+    int? daily,
+    int? weekly,
+    int? monthly,
+  }) async {
+    calls.add('set-limits ${daily ?? '-'} ${weekly ?? '-'} ${monthly ?? '-'}');
+    return limitsView = LimitsView(
+      daily: daily ?? limitsView.daily,
+      weekly: weekly ?? limitsView.weekly,
+      monthly: monthly ?? limitsView.monthly,
+      pending: limitsView.pending,
+      excludedUntil: limitsView.excludedUntil,
+      permanent: limitsView.permanent,
+    );
+  }
+
+  @override
+  Future<LimitsView> selfExclude(String token, String period) async {
+    calls.add('exclude $period');
+    final until = period == 'permanent'
+        ? null
+        : DateTime.now().toUtc().add(const Duration(days: 1));
+    return limitsView = LimitsView(
+      daily: limitsView.daily,
+      weekly: limitsView.weekly,
+      monthly: limitsView.monthly,
+      permanent: period == 'permanent',
+      excludedUntil: until,
     );
   }
 
@@ -125,8 +258,13 @@ class FakeApi implements ArenaApi {
     String token, {
     required GameMode mode,
     required int seats,
+    int entry = 0,
   }) async {
-    calls.add('create $token ${mode.name} $seats');
+    calls.add(
+      entry == 0
+          ? 'create $token ${mode.name} $seats'
+          : 'create $token ${mode.name} $seats entry $entry',
+    );
     return room ?? lobbyRoom();
   }
 
@@ -210,18 +348,22 @@ PlayerView player(
   connected: connected,
 );
 
-RoomView lobbyRoom({List<PlayerView>? players, String owner = 'u1'}) =>
-    RoomView(
-      code: code,
-      link: 'https://arena.example/r/$code',
-      mode: GameMode.oneVsOne,
-      seats: 2,
-      stake: 0,
-      status: RoomStatus.waiting,
-      ownerUserId: owner,
-      matchId: null,
-      players: players ?? [player(0, me)],
-    );
+RoomView lobbyRoom({
+  List<PlayerView>? players,
+  String owner = 'u1',
+  int entry = 0,
+}) => RoomView(
+  code: code,
+  link: 'https://arena.example/r/$code',
+  mode: GameMode.oneVsOne,
+  seats: 2,
+  stake: 0,
+  entry: entry,
+  status: RoomStatus.waiting,
+  ownerUserId: owner,
+  matchId: null,
+  players: players ?? [player(0, me)],
+);
 
 RoomView playingRoom() => RoomView(
   code: code,

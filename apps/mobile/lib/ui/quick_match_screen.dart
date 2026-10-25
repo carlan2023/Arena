@@ -67,6 +67,12 @@ class _QuickMatchScreenState extends ConsumerState<QuickMatchScreen> {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
+              if (widget.table.entry > 0)
+                Text(
+                  '${widget.table.entry} coin table',
+                  key: const Key('table-entry'),
+                  style: text.titleMedium,
+                ),
               const Spacer(),
               if (view.searching) ...[
                 const SizedBox(

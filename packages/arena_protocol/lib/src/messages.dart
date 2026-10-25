@@ -194,6 +194,7 @@ sealed class ServerMessage {
       PlayerStatusMessage.kType => PlayerStatusMessage.fromJson(j),
       EmoteEvent.kType => EmoteEvent.fromJson(j),
       GameOverMessage.kType => GameOverMessage.fromJson(j),
+      WalletUpdateMessage.kType => WalletUpdateMessage.fromJson(j),
       ErrorMessage.kType => ErrorMessage.fromJson(j),
       PongMessage.kType => PongMessage.fromJson(j),
       QueueStatusMessage.kType => QueueStatusMessage.fromJson(j),
@@ -442,6 +443,7 @@ class GameOverMessage extends ServerMessage {
     required this.serverSeed,
     required this.clientSeed,
     required this.walletDelta,
+    this.coinsDelta = const {},
   });
   static const kType = 'game_over';
   final int seq;
@@ -456,6 +458,9 @@ class GameOverMessage extends ServerMessage {
   /// userId to wallet change. Empty for free games.
   final Map<String, int> walletDelta;
 
+  /// userId to the net coin change for the match. Empty when no coins moved.
+  final Map<String, int> coinsDelta;
+
   @override
   String get type => kType;
   @override
@@ -468,9 +473,13 @@ class GameOverMessage extends ServerMessage {
     'serverSeed': serverSeed,
     'clientSeed': clientSeed,
     'walletDelta': walletDelta,
+    'coinsDelta': coinsDelta,
   };
   factory GameOverMessage.fromJson(Json j) {
     final delta = asObject(j['walletDelta'], 'walletDelta');
+    final coins = j['coinsDelta'] == null
+        ? const <String, int>{}
+        : _intMap(asObject(j['coinsDelta'], 'coinsDelta'), 'coinsDelta');
     return GameOverMessage(
       seq: reqInt(j, 'seq'),
       matchId: reqString(j, 'matchId'),
@@ -478,14 +487,51 @@ class GameOverMessage extends ServerMessage {
       winners: [for (final s in reqStringList(j, 'winners')) parseColor(s)],
       serverSeed: reqString(j, 'serverSeed'),
       clientSeed: reqString(j, 'clientSeed'),
-      walletDelta: {
-        for (final e in delta.entries)
-          e.key: e.value is int
-              ? e.value as int
-              : throw ProtocolException('walletDelta values must be integers'),
-      },
+      walletDelta: _intMap(delta, 'walletDelta'),
+      coinsDelta: coins,
     );
   }
+}
+
+Map<String, int> _intMap(Json raw, String key) => {
+  for (final e in raw.entries)
+    e.key: e.value is int
+        ? e.value as int
+        : throw ProtocolException('$key values must be integers'),
+};
+
+/// Sent to one player after a stake, payout, refund or other coin change.
+class WalletUpdateMessage extends ServerMessage {
+  const WalletUpdateMessage({
+    required this.balance,
+    required this.coins,
+    required this.reason,
+  });
+  static const kType = 'wallet_update';
+
+  /// UGX wallet balance after the change.
+  final int balance;
+
+  /// Coin balance after the change.
+  final int coins;
+
+  /// Why it changed: stake, payout or refund.
+  final String reason;
+
+  @override
+  String get type => kType;
+  @override
+  Json toJson() => {
+    'type': type,
+    'balance': balance,
+    'coins': coins,
+    'reason': reason,
+  };
+  factory WalletUpdateMessage.fromJson(Json j) => WalletUpdateMessage(
+    balance: reqInt(j, 'balance'),
+    coins: reqInt(j, 'coins'),
+    reason: reqString(j, 'reason'),
+  );
 }
 
 enum QueueState { waiting, matched, timeout, cancelled }
@@ -596,6 +642,9 @@ abstract final class ErrorCodes {
   static const ageRequired = 'age_required';
   static const selfExcluded = 'self_excluded';
   static const limitExceeded = 'limit_exceeded';
+
+  /// A date of birth was sent for an account that already has one.
+  static const alreadySet = 'already_set';
   static const alreadyClaimed = 'already_claimed';
 }
 

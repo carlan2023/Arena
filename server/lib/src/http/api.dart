@@ -35,6 +35,7 @@ class Api {
     required this.ledger,
     required this.payments,
     required this.paymentStore,
+    required this.limits,
     required this.rooms,
     required this.matchLog,
     required this.coins,
@@ -57,6 +58,7 @@ class Api {
   final Ledger ledger;
   final PaymentsService payments;
   final PaymentStore paymentStore;
+  final LimitsService limits;
   final RoomManager rooms;
   final MatchLog matchLog;
   final CoinService coins;
@@ -79,12 +81,17 @@ class Api {
     r.post('/v1/auth/guest', _wrap(_guest, authed: false));
     r.get('/v1/me', _wrap(_me));
     r.patch('/v1/me', _wrap(_patchMe));
+    r.post('/v1/me/date-of-birth', _wrap(_dateOfBirth));
     r.get('/v1/coins', _wrap(_coins));
     r.post('/v1/coins/daily', _wrap(_claimDaily));
+    r.get('/v1/tables', _wrap(_tables));
     r.post('/v1/rooms', _wrap(_createRoom));
     r.get('/v1/rooms/<code>', _wrap(_getRoom));
     r.get('/v1/wallet', _wrap(_wallet));
     r.get('/v1/wallet/history', _wrap(_history));
+    r.get('/v1/wallet/limits', _wrap(_getLimits));
+    r.put('/v1/wallet/limits', _wrap(_setLimits));
+    r.post('/v1/wallet/self-exclusion', _wrap(_selfExclude));
     r.post('/v1/wallet/deposits', _wrap(_deposit));
     r.get('/v1/wallet/deposits/<id>', _wrap(_getDeposit));
     // D28: MTN sometimes calls back with PUT.
@@ -142,6 +149,23 @@ class Api {
         return _errorResponse(
           HttpError(e.code == 'not_found' ? 404 : 400, e.code, e.message),
         );
+      } on SelfExcludedException {
+        return _errorResponse(
+          HttpError(
+            403,
+            ErrorCodes.selfExcluded,
+            'self exclusion is in effect',
+          ),
+        );
+      } on LimitExceededException catch (e) {
+        return _errorResponse(
+          HttpError(
+            403,
+            ErrorCodes.limitExceeded,
+            '${e.window} deposit limit of ${e.limit} UGX is reached '
+            '(${e.used} already used)',
+          ),
+        );
       } catch (e, st) {
         // ignore: avoid_print
         print('ERROR ${req.method} ${req.url.path}: $e\n$st');
@@ -197,6 +221,22 @@ class Api {
     }
   }
 
+  DateTime get _now =>
+      DateTime.fromMillisecondsSinceEpoch(clock.nowMs(), isUtc: true);
+
+  /// Deposits and a stake above 0 need a stored date of birth of at least
+  /// [ServerConfig.minAge] years. Reading the wallet does not.
+  void _requireAdult(User user) {
+    final dob = user.dateOfBirth;
+    if (dob == null || !isOldEnough(dob, _now, config.minAge)) {
+      throw HttpError(
+        403,
+        ErrorCodes.ageRequired,
+        'you must be ${config.minAge} or older',
+      );
+    }
+  }
+
   Future<Object?> _me(Request req, User? user, List<String> _) => _user(user!);
 
   Future<Object?> _patchMe(Request req, User? user, List<String> _) async {
@@ -227,6 +267,53 @@ class Api {
     }
   }
 
+  Future<Object?> _dateOfBirth(Request req, User? user, List<String> _) async {
+    _requirePhone(user!);
+    final body = await _body(req);
+    final raw = body['dateOfBirth'];
+    if (raw is! String) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'dateOfBirth must be yyyy-mm-dd',
+      );
+    }
+    final dob = parseDateOfBirth(raw);
+    if (dob == null) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'dateOfBirth must be a real date, yyyy-mm-dd',
+      );
+    }
+    if (dob.isAfter(utcDate(_now))) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'date of birth cannot be in the future',
+      );
+    }
+    try {
+      final updated = await users.setDateOfBirth(user.id, dob);
+      if (!isOldEnough(dob, _now, config.minAge)) {
+        throw HttpError(
+          403,
+          ErrorCodes.ageRequired,
+          'you must be ${config.minAge} or older',
+        );
+      }
+      return await _user(updated);
+    } on DateOfBirthAlreadySetException {
+      throw HttpError(
+        409,
+        ErrorCodes.alreadySet,
+        'date of birth is already set',
+      );
+    } on StateError catch (e) {
+      throw HttpError(404, 'not_found', e.message);
+    }
+  }
+
   /// The user with their coin balance. The signup grant (D36) is made here,
   /// once per account, so accounts from before coins existed get it too.
   Future<Json> _user(User u) async {
@@ -237,6 +324,9 @@ class Api {
       displayName: u.displayName,
       avatar: u.avatar,
       coins: await coins.balance(u.id),
+      dateOfBirth: u.dateOfBirth == null
+          ? null
+          : formatDateOfBirth(u.dateOfBirth!),
     ).toJson();
   }
 
@@ -286,7 +376,7 @@ class Api {
             matchId: m.matchId,
             mode: parseMode(m.mode),
             stake: m.stake,
-            entry: 0,
+            entry: m.entry,
             abandoned: m.status == MatchStatus.abandoned,
             endedAt: m.endedAt,
             rank: m.players.where((p) => p.userId == user.id).first.place,
@@ -314,12 +404,13 @@ class Api {
         .firstOrNull;
     final seats = body['seats'];
     final stake = body['stake'] ?? 0;
+    final entry = body['entry'] ?? 0;
     final rulesJson = body['rules'];
-    if (mode == null || seats is! int || stake is! int) {
+    if (mode == null || seats is! int || stake is! int || entry is! int) {
       throw HttpError(
         400,
         ErrorCodes.badRequest,
-        'mode, seats and stake are required',
+        'mode, seats, stake and entry must be valid',
       );
     }
     if (!validSeats(mode, seats)) {
@@ -340,7 +431,25 @@ class Api {
     } catch (e) {
       throw HttpError(400, ErrorCodes.badRequest, 'bad rules: $e');
     }
-    if (stake > 0) _requirePhone(user!);
+    if (entry > 0 && stake > 0) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'a room cannot take both coins and a stake',
+      );
+    }
+    if (entry > 0 && !const CoinTableSettings().allows(entry)) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'that coin table is not open',
+      );
+    }
+    if (stake > 0) {
+      _requirePhone(user!);
+      _requireAdult(user);
+      await limits.checkPlay(user.id);
+    }
     if (stake > 0 && !config.paidTablesEnabled) {
       throw HttpError(
         403,
@@ -361,6 +470,7 @@ class Api {
         mode: mode,
         seats: seats,
         stake: stake,
+        entry: entry,
         rules: rules,
       );
       return rooms.view(room).toJson();
@@ -368,6 +478,12 @@ class Api {
       throw HttpError(400, e.code, e.message);
     }
   }
+
+  Object? _tables(Request req, User? _, List<String> _) => TablesView(
+    coin: const CoinTableSettings().entries,
+    paid: CoinTableSettings.paidStakes,
+    paidEnabled: config.paidTablesEnabled,
+  ).toJson();
 
   Object? _getRoom(Request req, User? _, List<String> params) {
     final room = rooms.room(params[0]);
@@ -412,8 +528,81 @@ class Api {
     };
   }
 
+  Future<Object?> _getLimits(Request req, User? user, List<String> _) async {
+    _requirePhone(user!);
+    return _limitsJson(await limits.limits(user.id));
+  }
+
+  Future<Object?> _setLimits(Request req, User? user, List<String> _) async {
+    _requirePhone(user!);
+    final body = await _body(req);
+    final daily = body['daily'];
+    final weekly = body['weekly'];
+    final monthly = body['monthly'];
+    if (daily == null && weekly == null && monthly == null) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'send a daily, weekly or monthly limit',
+      );
+    }
+    for (final value in [daily, weekly, monthly]) {
+      if (value != null && value is! int) {
+        throw HttpError(
+          400,
+          ErrorCodes.badRequest,
+          'limits must be whole numbers of UGX',
+        );
+      }
+    }
+    try {
+      return _limitsJson(
+        await limits.setLimits(
+          user.id,
+          daily: daily as int?,
+          weekly: weekly as int?,
+          monthly: monthly as int?,
+        ),
+      );
+    } on ArgumentError catch (e) {
+      throw HttpError(400, ErrorCodes.badRequest, '${e.message}');
+    }
+  }
+
+  Future<Object?> _selfExclude(Request req, User? user, List<String> _) async {
+    _requirePhone(user!);
+    final body = await _body(req);
+    final raw = body['period'];
+    final period = raw is String ? exclusionPeriodFromApi(raw) : null;
+    if (period == null) {
+      throw HttpError(
+        400,
+        ErrorCodes.badRequest,
+        'period must be 1d, 7d, 30d, 6m or permanent',
+      );
+    }
+    return _limitsJson(await limits.selfExclude(user.id, period));
+  }
+
+  Json _limitsJson(PlayerLimits row) => LimitsView(
+    daily: row.daily,
+    weekly: row.weekly,
+    monthly: row.monthly,
+    pending: !row.hasPending || row.pendingAt == null
+        ? null
+        : PendingLimitsView(
+            at: row.pendingAt!,
+            daily: row.pendingDaily,
+            weekly: row.pendingWeekly,
+            monthly: row.pendingMonthly,
+          ),
+    excludedUntil: row.excludedUntil,
+    permanent: row.permanent,
+  ).toJson();
+
   Future<Object?> _deposit(Request req, User? user, List<String> _) async {
     _requirePhone(user!);
+    _requireAdult(user);
     final body = await _body(req);
     final amount = body['amount'];
     final msisdn = body['msisdn'];
