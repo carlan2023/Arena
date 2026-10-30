@@ -13,19 +13,19 @@ dependencies:
     path: wallet
   arena_protocol:
     path: ../packages/arena_protocol
-  crypto: ^3.0.6
+  crypto: ^3.0.8
   ludo_bots:
     path: ../packages/ludo_bots
   ludo_engine:
     path: ../packages/ludo_engine
-  postgres: ^3.5.17
+  postgres: ^3.5.20
   redis: ^4.1.0
-  shelf: ^1.4.2
-  shelf_router: ^1.1.4
+  shelf: ^1.4.3
+  shelf_router: ^1.1.5
   shelf_web_socket: ^3.0.0
   web_socket_channel: ^3.0.3
 
 dev_dependencies:
   http: ^1.6.0
   lints: ^6.1.0
-  test: ^1.32.0
+  test: ^1.33.0
